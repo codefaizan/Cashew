@@ -4142,7 +4142,14 @@ Future<List<int>?> getGoogleDriveFileImageData(String url) async {
         await signInGoogle(drivePermissionsAttachments: true);
       }
 
-      final authHeaders = await googleUser!.authHeaders;
+      final authHeaders =
+          await googleUser!.authorizationClient.authorizationHeaders(
+        googleAuthScopes,
+        promptIfNecessary: true,
+      );
+      if (authHeaders == null) {
+        throw Exception('Missing Google authorization headers');
+      }
       final authenticateClient = GoogleAuthClient(authHeaders);
       drive.DriveApi driveApi = drive.DriveApi(authenticateClient);
 

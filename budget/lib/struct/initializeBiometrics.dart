@@ -37,24 +37,27 @@ Future<AuthResult> checkBiometrics({
 
     final bool requireAuth =
         checkAlways || appStateSettings["requireAuth"] == true;
+    print("Biometrics check started. requireAuth=$requireAuth");
     if (requireAuth == false) return AuthResult.authenticated;
 
     await auth.stopAuthentication();
 
     if (authAvailable) {
       //bool biometricsOnly = (await auth.canCheckBiometrics);
-      return (await auth.authenticate(
+      final authenticated = await auth.authenticate(
         localizedReason: "verify-identity".tr(),
         options: AuthenticationOptions(biometricOnly: false),
-      ))
-          ? AuthResult.authenticated
-          : AuthResult.unauthenticated;
+      );
+      print("Biometrics result authenticated=$authenticated");
+      return authenticated ? AuthResult.authenticated : AuthResult.unauthenticated;
     }
 
+    print("Biometrics unavailable on device");
     return isDatabaseImportedOnThisSession
         ? AuthResult.errorBackupRestoreLaunch
         : AuthResult.error;
   } catch (e) {
+    print("Biometrics error: $e");
     return isDatabaseImportedOnThisSession
         ? AuthResult.errorBackupRestoreLaunch
         : AuthResult.error;
@@ -80,7 +83,10 @@ class _InitializeBiometricsState extends State<InitializeBiometrics> {
   }
 
   _biometricCheck() async {
-    AuthResult result = await checkBiometrics();
+    AuthResult result = await checkBiometrics().timeout(
+      const Duration(seconds: 12),
+      onTimeout: () => AuthResult.error,
+    );
     setState(() {
       authResult = result;
     });
@@ -151,10 +157,23 @@ class _InitializeBiometricsState extends State<InitializeBiometrics> {
                           size: 50,
                           color: Theme.of(context).colorScheme.secondary,
                         )
-                      : SizedBox.shrink(),
+                      : SizedBox(
+                          width: 46,
+                          height: 46,
+                          child: CircularProgressIndicator(strokeWidth: 3),
+                        ),
                 ),
               ),
             ),
+            if (authResult == AuthResult.waiting)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(top: 18),
+                child: TextFont(
+                  text: "verify-identity".tr(),
+                  textAlign: TextAlign.center,
+                  fontSize: 15,
+                ),
+              ),
             AnimatedExpanded(
               expand: authResult == AuthResult.error ||
                   authResult == AuthResult.errorBackupRestoreLaunch,

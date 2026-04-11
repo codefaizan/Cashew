@@ -328,6 +328,14 @@ Future<Map<String, dynamic>> getDefaultPreferences() async {
 
     // This key is used as a migration
     // "migratedSetLongTermLoansAmountTo0": false,
+
+    "aiEnabled": true,
+    "aiModelDownloaded": false,
+    "aiModelPath": "",
+    "aiConfirmActions": true,
+    "aiSendContext": true,
+    "aiChatHistory": <String>[],
+    "aiLastUsedProvider": "gemma",
   };
 }
 

@@ -423,7 +423,14 @@ Future<void> parseEmailsInBackground(context,
           appStateSettings["EmailAutoTransactions-amountOfEmails"] ?? 10;
       int newEmailCount = 0;
 
-      final authHeaders = await googleUser!.authHeaders;
+      final authHeaders =
+          await googleUser!.authorizationClient.authorizationHeaders(
+        googleAuthScopes,
+        promptIfNecessary: true,
+      );
+      if (authHeaders == null) {
+        throw Exception('Missing Google authorization headers');
+      }
       final authenticateClient = GoogleAuthClient(authHeaders);
       gMail.GmailApi gmailApi = gMail.GmailApi(authenticateClient);
       gMail.ListMessagesResponse results = await gmailApi.users.messages
@@ -661,7 +668,14 @@ class _GmailApiScreenState extends State<GmailApiScreen> {
     loading = true;
     if (googleUser != null) {
       try {
-        final authHeaders = await googleUser!.authHeaders;
+        final authHeaders =
+            await googleUser!.authorizationClient.authorizationHeaders(
+          googleAuthScopes,
+          promptIfNecessary: true,
+        );
+        if (authHeaders == null) {
+          throw Exception('Missing Google authorization headers');
+        }
         final authenticateClient = GoogleAuthClient(authHeaders);
         gMail.GmailApi gmailApi = gMail.GmailApi(authenticateClient);
         gMail.ListMessagesResponse results = await gmailApi.users.messages

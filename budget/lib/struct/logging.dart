@@ -50,7 +50,20 @@ captureLogs(Function body) {
     () async {
       await body();
     },
-    (error, stackTrace) {},
+    (error, stackTrace) {
+      Zone.root.run(() {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stackTrace,
+            library: 'captureLogs',
+            context: ErrorDescription('Unhandled error in app zone'),
+          ),
+        );
+        print('Unhandled zone error: $error');
+        print(stackTrace);
+      });
+    },
     zoneSpecification: ZoneSpecification(
       print: (Zone self, ZoneDelegate parent, Zone zone, String message) {
         logService.log(message);

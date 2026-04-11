@@ -123,7 +123,14 @@ Future<bool> createSyncBackup(
     return false;
   }
 
-  final authHeaders = await googleUser!.authHeaders;
+  final authHeaders =
+      await googleUser!.authorizationClient.authorizationHeaders(
+    googleAuthScopes,
+    promptIfNecessary: true,
+  );
+  if (authHeaders == null) {
+    throw Exception('Missing Google authorization headers');
+  }
   final authenticateClient = GoogleAuthClient(authHeaders);
   drive.DriveApi driveApi = drive.DriveApi(authenticateClient);
   if (driveApi == null) {
@@ -244,7 +251,14 @@ Future<bool> _syncData(BuildContext context) async {
     return false;
   }
 
-  final authHeaders = await googleUser!.authHeaders;
+  final authHeaders =
+      await googleUser!.authorizationClient.authorizationHeaders(
+    googleAuthScopes,
+    promptIfNecessary: true,
+  );
+  if (authHeaders == null) {
+    throw Exception('Missing Google authorization headers');
+  }
   final authenticateClient = GoogleAuthClient(authHeaders);
   drive.DriveApi driveApi = drive.DriveApi(authenticateClient);
   if (driveApi == null) {

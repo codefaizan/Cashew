@@ -26,6 +26,7 @@ import 'package:budget/widgets/restartApp.dart';
 import 'package:budget/struct/customDelayedCurve.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:budget/colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -40,38 +41,102 @@ import 'package:easy_localization/easy_localization.dart';
 bool enableDevicePreview = false && kDebugMode;
 bool allowDebugFlags = true || kIsWeb;
 bool allowDangerousDebugFlags = kDebugMode;
+bool firebaseStartupAvailable = true;
 
 void main() async {
   captureLogs(() async {
     WidgetsFlutterBinding.ensureInitialized();
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    await EasyLocalization.ensureInitialized();
-    sharedPreferences = await SharedPreferences.getInstance();
-    database = await constructDb('db');
-    notificationPayload = await initializeNotifications();
-    entireAppLoaded = false;
-    await loadCurrencyJSON();
-    await loadLanguageNamesJSON();
-    await initializeSettings();
-    tz.initializeTimeZones();
-    final String? locationName = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(locationName ?? "America/New_York"));
-    iconObjects.sort((a, b) => (a.mostLikelyCategoryName ?? a.icon)
-        .compareTo((b.mostLikelyCategoryName ?? b.icon)));
-    setHighRefreshRate();
-    runApp(
-      DevicePreview(
-        enabled: enableDevicePreview,
-        builder: (context) => InitializeLocalizations(
-          child: RestartApp(
-            child: InitializeApp(key: appStateKey),
+    try {
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      } on PlatformException catch (e) {
+        if (e.code == 'channel-error') {
+          firebaseStartupAvailable = false;
+          print(
+              'Firebase channel unavailable during startup. Continuing without Firebase.');
+        } else {
+          rethrow;
+        }
+      }
+      await EasyLocalization.ensureInitialized();
+      sharedPreferences = await SharedPreferences.getInstance();
+      database = await constructDb('db');
+      notificationPayload = await initializeNotifications();
+      entireAppLoaded = false;
+      await loadCurrencyJSON();
+      await loadLanguageNamesJSON();
+      await initializeSettings();
+      tz.initializeTimeZones();
+      final locationInfo = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(locationInfo.identifier));
+      iconObjects.sort((a, b) => (a.mostLikelyCategoryName ?? a.icon)
+          .compareTo((b.mostLikelyCategoryName ?? b.icon)));
+      setHighRefreshRate();
+      runApp(
+        DevicePreview(
+          enabled: enableDevicePreview,
+          builder: (context) => InitializeLocalizations(
+            child: RestartApp(
+              child: InitializeApp(key: appStateKey),
+            ),
+          ),
+        ),
+      );
+    } catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'main bootstrap',
+          context: ErrorDescription('while initializing app startup'),
+        ),
+      );
+      runApp(StartupErrorApp(error: error, stackTrace: stackTrace));
+    }
+  });
+}
+
+class StartupErrorApp extends StatelessWidget {
+  final Object error;
+  final StackTrace stackTrace;
+
+  const StartupErrorApp({
+    required this.error,
+    required this.stackTrace,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Startup failed',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(error.toString()),
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 16),
+                    SelectableText(stackTrace.toString()),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
-  });
+  }
 }
 
 GlobalKey<_InitializeAppState> appStateKey = GlobalKey();
