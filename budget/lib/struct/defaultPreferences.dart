@@ -335,7 +335,7 @@ Future<Map<String, dynamic>> getDefaultPreferences() async {
     "aiConfirmActions": true,
     "aiSendContext": true,
     "aiChatHistory": <String>[],
-    "aiLastUsedProvider": "gemma",
+    "aiLastUsedProvider": "gemini_nano",
   };
 }
 

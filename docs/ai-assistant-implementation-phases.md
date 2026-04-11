@@ -4,12 +4,12 @@
 
 | # | Task | Measurable Output | Status |
 |---|------|-------------------|--------|
-| 0.1 | Confirm provider strategy in docs/settings (`gemini_nano` first, `gemma` fallback) | Decisions and settings keys aligned | ⬜ |
-| 0.2 | Run `flutter pub get` in `budget/` | Dependencies resolve cleanly | ⬜ |
-| 0.3 | Add Android native bridge scaffolding for Gemini Nano provider | MethodChannel endpoint exists and compiles | ⬜ |
-| 0.4 | Create `lib/struct/ai/` directory | Directory exists | ⬜ |
-| 0.5 | Add AI default settings to `lib/struct/defaultPreferences.dart` | 6 new keys added: `aiEnabled`, `aiModelDownloaded`, `aiModelPath`, `aiConfirmActions`, `aiSendContext`, `aiChatHistory` | ⬜ |
-| 0.6 | Verify app still builds after provider dependency updates | `flutter build appbundle --debug` succeeds | ⬜ |
+| 0.1 | Confirm provider strategy in docs/settings (`gemini_nano` first, `gemma` fallback) | Decisions and settings keys aligned | ✅ |
+| 0.2 | Run `flutter pub get` in `budget/` | Dependencies resolve cleanly | ✅ |
+| 0.3 | Add Android native bridge scaffolding for Gemini Nano provider | MethodChannel endpoint exists and compiles | ✅ |
+| 0.4 | Create `lib/struct/ai/` directory | Directory exists | ✅ |
+| 0.5 | Add AI default settings to `lib/struct/defaultPreferences.dart` | 6 new keys added: `aiEnabled`, `aiModelDownloaded`, `aiModelPath`, `aiConfirmActions`, `aiSendContext`, `aiChatHistory` | ✅ |
+| 0.6 | Verify app still builds after provider dependency updates | `flutter build appbundle --debug` succeeds | ✅ |
 
 **Phase 0 Exit Criteria:** App builds with Gemini Nano primary path prepared and no existing functionality broken.
 
@@ -19,11 +19,11 @@
 
 | # | Task | Measurable Output | Status |
 |---|------|-------------------|--------|
-| 1.1 | Create `lib/struct/ai/ai_intent_types.dart` | File with 9 intent classes: `AddTransactionIntent`, `AddBudgetIntent`, `AddObjectiveIntent`, `QuerySpendingIntent`, `QueryBudgetRemainingIntent`, `QueryNetWorthIntent`, `NavigateIntent`, `PayTransactionIntent`, `UnclearIntent` + `AiExecutionResult` class | ⬜ |
-| 1.2 | Create `lib/struct/ai/ai_provider.dart` | File with `AiProvider` abstract class (4 methods: `name`, `isAvailable`, `initialize`, `generateChatResponse`, `dispose`) + `ChatMessage` class | ⬜ |
-| 1.3 | Create `lib/struct/ai/ai_chat_history.dart` | File with `AiChatHistory` class: `addMessage`, `getMessages`, `clear`, `truncateToLast` (N=10), serialization to/from settings | ⬜ |
-| 1.4 | Write unit test: `AiChatHistory` truncation | Test that adding 15 messages and truncating keeps only last 10 | ⬜ |
-| 1.5 | Write unit test: `AiExecutionResult` construction | Test success/failure result objects with all fields | ⬜ |
+| 1.1 | Create `lib/struct/ai/ai_intent_types.dart` | File with 9 intent classes: `AddTransactionIntent`, `AddBudgetIntent`, `AddObjectiveIntent`, `QuerySpendingIntent`, `QueryBudgetRemainingIntent`, `QueryNetWorthIntent`, `NavigateIntent`, `PayTransactionIntent`, `UnclearIntent` + `AiExecutionResult` class | ✅ |
+| 1.2 | Create `lib/struct/ai/ai_provider.dart` | File with `AiProvider` abstract class (4 methods: `name`, `isAvailable`, `initialize`, `generateChatResponse`, `dispose`) + `ChatMessage` class | ✅ |
+| 1.3 | Create `lib/struct/ai/ai_chat_history.dart` | File with `AiChatHistory` class: `addMessage`, `getMessages`, `clear`, `truncateToLast` (N=10), serialization to/from settings | ✅ |
+| 1.4 | Write unit test: `AiChatHistory` truncation | Test that adding 15 messages and truncating keeps only last 10 | ✅ |
+| 1.5 | Write unit test: `AiExecutionResult` construction | Test success/failure result objects with all fields | ✅ |
 
 **Phase 1 Exit Criteria:** All type definitions compile. `AiProvider` interface is final. Chat history truncation works. Provider abstraction is runtime-switchable.
 
@@ -33,17 +33,17 @@
 
 | # | Task | Measurable Output | Status |
 |---|------|-------------------|--------|
-| 2.1 | Create `lib/struct/ai/ai_provider_gemini_nano.dart` | File with `GeminiNanoProvider implements AiProvider` | ⬜ |
-| 2.2 | Implement Android availability check | `isAvailableOnDevice()` returns bool from native bridge/AI Core check | ⬜ |
-| 2.3 | Implement provider initialization | `initialize()` opens/warms Nano session and returns bool | ⬜ |
-| 2.4 | Implement prompt request path | `generateChatResponse()` sends `systemPrompt + history + userMessage` and returns text | ⬜ |
-| 2.5 | Implement `dispose()` | Closes/cleans provider resources | ⬜ |
-| 2.6 | Implement error mapping | Native/provider errors map to user-safe messages and retry states | ⬜ |
-| 2.7 | Implement compatibility surface | Unsupported devices return deterministic unavailability state | ⬜ |
-| 2.8 | Add integration hook in provider router | App chooses `gemini_nano` first when available | ⬜ |
-| 2.9 | Test: initialize + generate on supported Android device | Nano responds with non-empty text for "Hello" | ⬜ |
+| 2.1 | Create `lib/struct/ai/ai_provider_gemini_nano.dart` | File with `GeminiNanoProvider implements AiProvider` | ✅ |
+| 2.2 | Implement Android availability check | `isAvailableOnDevice()` returns bool from native bridge/AI Core check | ✅ |
+| 2.3 | Implement provider initialization | `initialize()` opens/warms Nano session and returns bool | ✅ |
+| 2.4 | Implement prompt request path | `generateChatResponse()` sends `systemPrompt + history + userMessage` and returns text | ✅ |
+| 2.5 | Implement `dispose()` | Closes/cleans provider resources | ✅ |
+| 2.6 | Implement error mapping | Native/provider errors map to user-safe messages and retry states | ✅ |
+| 2.7 | Implement compatibility surface | Unsupported devices return deterministic unavailability state | ✅ |
+| 2.8 | Add integration hook in provider router | App chooses `gemini_nano` first when available | ✅ |
+| 2.9 | Test: initialize + generate on supported Android device | Nano responds with non-empty text for "Hello" | 🟨 |
 
-**Phase 2 Exit Criteria:** `GeminiNanoProvider` initializes and generates text on supported Android devices. Unsupported devices degrade gracefully to fallback path.
+**Phase 2 Exit Criteria:** `GeminiNanoProvider` initializes and generates text on supported Android devices. Unsupported devices return a deterministic unavailable state.
 
 ---
 
@@ -51,10 +51,10 @@
 
 | # | Task | Measurable Output | Status |
 |---|------|-------------------|--------|
-| 2B.1 | Keep `lib/struct/ai/ai_provider_gemma.dart` as fallback provider | File compiles and implements `AiProvider` | ⬜ |
-| 2B.2 | Validate fallback download flow | Model download + progress + cancel works | ⬜ |
-| 2B.3 | Validate fallback initialize/generate flow | Non-empty response for simple prompt | ⬜ |
-| 2B.4 | Wire provider routing fallback | If Nano unavailable/error, app uses Gemma | ⬜ |
+| 2B.1 | Keep `lib/struct/ai/ai_provider_gemma.dart` as fallback provider | File compiles and implements `AiProvider` | ⏸️ |
+| 2B.2 | Validate fallback download flow | Model download + progress + cancel works | ⏸️ |
+| 2B.3 | Validate fallback initialize/generate flow | Non-empty response for simple prompt | ⏸️ |
+| 2B.4 | Wire provider routing fallback | If Nano unavailable/error, app uses Gemma | ⏸️ |
 
 **Phase 2B Exit Criteria:** Gemma remains a working fallback path on devices without Gemini Nano support.
 
