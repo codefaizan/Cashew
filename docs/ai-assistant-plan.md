@@ -6,12 +6,14 @@ Add an AI-powered command assistant to Cashew that lets users manage finances th
 
 ## Decisions Locked
 
-- **LLM**: On-device only via `flutter_gemma` (Gemma 4 E2B, ~2.4GB `.task` model)
+- **LLM**: On-device provider-first strategy:
+  - Primary: **Gemini Nano via Android AI Core** (no in-app model download)
+  - Fallback: **`flutter_gemma` Gemma 4 E2B** for unsupported Nano devices
 - **UI**: FAB long-press → "AI Assistant" as first option in `AddMoreThingsPopup`
 - **Input**: Text-only for V1
 - **Query results**: Inline response with optional [View Details] link
 - **Fallback**: LLM-only (no rule-based offline fallback)
-- **Abstraction**: `AiProvider` interface ready for future cloud/custom providers
+- **Abstraction**: `AiProvider` interface with runtime provider routing (`gemini_nano` → `gemma`)
 
 ---
 
@@ -26,7 +28,8 @@ Add an AI-powered command assistant to Cashew that lets users manage finances th
 │                                     ↓           │
 │                          ┌──────────────────┐   │
 │                          │  AiProvider      │   │
-│                          │  (flutter_gemma) │   │
+│                          │  (gemini_nano)   │   │
+│                          │  fallback gemma  │   │
 │                          └────────┬─────────┘   │
 │                                   ↓             │
 │                          ┌──────────────────┐   │
@@ -74,11 +77,12 @@ Add an AI-powered command assistant to Cashew that lets users manage finances th
 
 ---
 
-## New Files (11 files)
+## New Files (12 files)
 
 ```
 lib/struct/ai/
 ├── ai_provider.dart              # Abstract AiProvider interface
+├── ai_provider_gemini_nano.dart  # Android AI Core Gemini Nano implementation
 ├── ai_provider_gemma.dart        # flutter_gemma on-device implementation
 ├── ai_intent_parser.dart         # LLM response → ParsedIntent
 ├── ai_intent_executor.dart       # ParsedIntent → DB/UI action
@@ -103,7 +107,7 @@ lib/pages/
 | `lib/struct/defaultPreferences.dart` | Add AI-related default settings |
 | `lib/struct/settings.dart` | Initialize AI settings on startup |
 | `lib/pages/settingsPage.dart` | Add AI settings entry in "Tools & Extras" section |
-| `budget/pubspec.yaml` | Add `flutter_gemma` dependency |
+| `budget/pubspec.yaml` | Add provider dependencies (`flutter_gemma` fallback, Android plugins if needed) |
 
 ---
 
@@ -131,24 +135,25 @@ class ChatMessage {
 }
 ```
 
-### 2. `lib/struct/ai/ai_provider_gemma.dart` — flutter_gemma Implementation
+### 2. `lib/struct/ai/ai_provider_gemini_nano.dart` — Gemini Nano Primary Provider
 
 Key responsibilities:
-- Initialize `GemmaModel` with the downloaded `.task` model file
-- Manage the `ChatSession` (create, add messages, generate response)
-- Handle model download via `flutter_gemma`'s built-in download manager (progress, retry, WiFi-only)
-- Check device compatibility before initialization
-- Fall back to CPU if GPU/NPU unavailable
+- Bridge to Android AI Core APIs via platform channel
+- Check runtime capability/support status on current device
+- Initialize Gemini Nano session on-demand
+- Send chat prompts + history and return model response text
+- Report unsupported/error states cleanly to UI
 - Implement `AiProvider` interface
 
-Model download flow:
-1. Check if model file exists locally
-2. If not, show download prompt with size (~2.4GB) and WiFi requirement
-3. Download with progress tracking
-4. Initialize model after download completes
-5. Cache model path in settings
+### 3. `lib/struct/ai/ai_provider_gemma.dart` — Gemma Fallback Provider
 
-### 3. `lib/struct/ai/ai_intent_types.dart` — Type Definitions
+Key responsibilities:
+- Preserve existing `flutter_gemma` path for devices without Gemini Nano support
+- Manage model download + initialization + response generation
+- Surface download progress and failures to the same UI layer
+- Implement `AiProvider` interface
+
+### 4. `lib/struct/ai/ai_intent_types.dart` — Type Definitions
 
 ```dart
 sealed class AiIntent {
@@ -359,7 +364,7 @@ Components:
 "aiConfirmActions": true,
 "aiSendContext": true,
 "aiChatHistory": <String>[],
-"aiLastUsedProvider": "gemma",
+"aiLastUsedProvider": "gemini_nano",
 ```
 
 ---
@@ -402,6 +407,7 @@ SettingsContainerOpenPage(
 
 ```yaml
 dependencies:
+  # optional fallback provider
   flutter_gemma: ^0.13.2
 ```
 
@@ -434,19 +440,20 @@ dependencies:
 
 1. `ai_intent_types.dart` — Pure types, no dependencies
 2. `ai_provider.dart` — Abstract interface
-3. `ai_provider_gemma.dart` — flutter_gemma wrapper
-4. `ai_context_builder.dart` — System prompt builder
-5. `ai_intent_parser.dart` — LLM response → Intent
-6. `ai_intent_executor.dart` — Intent → Action
-7. `ai_response_formatter.dart` — Action → Natural language
-8. `ai_chat_history.dart` — Session management
-9. `aiAssistantChat.dart` — Chat UI
-10. `aiAssistant.dart` — Sheet wrapper
-11. `aiSettingsPage.dart` — Settings page
-12. Modify `navigationFramework.dart` — Add to FAB popup
-13. Modify `defaultPreferences.dart` — Add settings
-14. Modify `settingsPage.dart` — Add settings entry
-15. Modify `pubspec.yaml` — Add flutter_gemma
+3. `ai_provider_gemini_nano.dart` — Gemini Nano wrapper (primary)
+4. `ai_provider_gemma.dart` — Gemma wrapper (fallback)
+5. `ai_context_builder.dart` — System prompt builder
+6. `ai_intent_parser.dart` — LLM response → Intent
+7. `ai_intent_executor.dart` — Intent → Action
+8. `ai_response_formatter.dart` — Action → Natural language
+9. `ai_chat_history.dart` — Session management
+10. `aiAssistantChat.dart` — Chat UI
+11. `aiAssistant.dart` — Sheet wrapper
+12. `aiSettingsPage.dart` — Settings page
+13. Modify `navigationFramework.dart` — Add to FAB popup
+14. Modify `defaultPreferences.dart` — Add settings
+15. Modify `settingsPage.dart` — Add settings entry
+16. Modify `pubspec.yaml` — Provider dependencies
 
 ---
 
@@ -458,21 +465,27 @@ A 2B parameter model has limited reasoning. Mitigations:
 - Intent classification is separate from parameter extraction (two-pass if needed)
 - The prompt explicitly lists the user's category names so the model doesn't hallucinate
 - `UnclearIntent` catches all failures gracefully
-- If Gemma 4 E2B proves insufficient, the `AiProvider` abstraction makes it trivial to swap to a cloud provider or larger model
+- If Gemini Nano is unavailable or insufficient on a device, `AiProvider` routing falls back to Gemma
 
 ---
 
-## flutter_gemma Package Details
+## Provider Details
+
+### Gemini Nano (Primary)
+
+| Attribute | Value |
+|-----------|-------|
+| Runtime | Android AI Core |
+| Download | No in-app model download flow |
+| Device scope | Supported Android devices only |
+| UX | Fast setup on compatible devices |
+
+### Gemma via flutter_gemma (Fallback)
 
 | Attribute | Value |
 |-----------|-------|
 | Package | `flutter_gemma: ^0.13.2` |
-| Engine | MediaPipe / LiteRT-LM (Google's official runtime) |
-| Model format | `.task` (MediaPipe) |
-| Models supported | Gemma 4 E2B/E4B, Gemma3n, Gemma 3 (1B/270M) |
-| Android backends | CPU, GPU (OpenCL), NPU (Qualcomm/MediaTek/Tensor) |
-| Model size (Gemma 4 E2B) | ~2.4GB |
-| Min device | 4GB+ RAM (6GB+ recommended) |
-| Performance (CPU) | 5-15 tok/s |
-| Performance (GPU) | 15-30 tok/s |
-| Performance (NPU) | 20-50+ tok/s |
+| Runtime | MediaPipe / LiteRT-LM |
+| Model format | `.litertlm` / `.task` (model-dependent) |
+| Download | In-app download with progress |
+| Device scope | Wider than Nano, but heavy model download |

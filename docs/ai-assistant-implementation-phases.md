@@ -4,14 +4,14 @@
 
 | # | Task | Measurable Output | Status |
 |---|------|-------------------|--------|
-| 0.1 | Add `flutter_gemma: ^0.13.2` to `budget/pubspec.yaml` | pubspec.yaml updated | ⬜ |
+| 0.1 | Confirm provider strategy in docs/settings (`gemini_nano` first, `gemma` fallback) | Decisions and settings keys aligned | ⬜ |
 | 0.2 | Run `flutter pub get` in `budget/` | Dependencies resolve cleanly | ⬜ |
-| 0.3 | Add OpenCL/GPU feature flag to `android/app/src/main/AndroidManifest.xml` | `<uses-feature android:name="android.hardware.opengles.aep" android:required="false"/>` added | ⬜ |
+| 0.3 | Add Android native bridge scaffolding for Gemini Nano provider | MethodChannel endpoint exists and compiles | ⬜ |
 | 0.4 | Create `lib/struct/ai/` directory | Directory exists | ⬜ |
 | 0.5 | Add AI default settings to `lib/struct/defaultPreferences.dart` | 6 new keys added: `aiEnabled`, `aiModelDownloaded`, `aiModelPath`, `aiConfirmActions`, `aiSendContext`, `aiChatHistory` | ⬜ |
-| 0.6 | Verify app still builds after dependency addition | `flutter build appbundle --debug` succeeds | ⬜ |
+| 0.6 | Verify app still builds after provider dependency updates | `flutter build appbundle --debug` succeeds | ⬜ |
 
-**Phase 0 Exit Criteria:** App builds with flutter_gemma dependency. No existing functionality broken.
+**Phase 0 Exit Criteria:** App builds with Gemini Nano primary path prepared and no existing functionality broken.
 
 ---
 
@@ -25,25 +25,38 @@
 | 1.4 | Write unit test: `AiChatHistory` truncation | Test that adding 15 messages and truncating keeps only last 10 | ⬜ |
 | 1.5 | Write unit test: `AiExecutionResult` construction | Test success/failure result objects with all fields | ⬜ |
 
-**Phase 1 Exit Criteria:** All type definitions compile. `AiProvider` interface is final. Chat history truncation works. Zero runtime dependencies on flutter_gemma yet.
+**Phase 1 Exit Criteria:** All type definitions compile. `AiProvider` interface is final. Chat history truncation works. Provider abstraction is runtime-switchable.
 
 ---
 
-## Phase 2: LLM Provider Implementation (flutter_gemma)
+## Phase 2: Primary Provider Implementation (Gemini Nano)
 
 | # | Task | Measurable Output | Status |
 |---|------|-------------------|--------|
-| 2.1 | Create `lib/struct/ai/ai_provider_gemma.dart` | File with `GemmaProvider implements AiProvider` | ⬜ |
-| 2.2 | Implement model download check | `isModelDownloaded()` returns bool based on local file existence | ⬜ |
-| 2.3 | Implement model download with progress | `downloadModel()` streams progress 0.0→1.0, stores path in settings | ⬜ |
-| 2.4 | Implement model initialization | `initialize()` loads `.task` model, falls back CPU if GPU/NPU unavailable | ⬜ |
-| 2.5 | Implement chat session management | `generateChatResponse()` creates `ChatSession`, adds system + history + user messages, returns response string | ⬜ |
-| 2.6 | Implement `dispose()` | Cleans up model session, frees memory | ⬜ |
-| 2.7 | Implement device compatibility check | Static method `isDeviceCompatible()` checks RAM ≥ 4GB, Android API ≥ 24 | ⬜ |
-| 2.8 | Add model download URL constant | Gemma 4 E2B `.task` model URL from HuggingFace | ⬜ |
-| 2.9 | Test: initialize + generate on Android device | Model loads, responds to "Hello" with text output | ⬜ |
+| 2.1 | Create `lib/struct/ai/ai_provider_gemini_nano.dart` | File with `GeminiNanoProvider implements AiProvider` | ⬜ |
+| 2.2 | Implement Android availability check | `isAvailableOnDevice()` returns bool from native bridge/AI Core check | ⬜ |
+| 2.3 | Implement provider initialization | `initialize()` opens/warms Nano session and returns bool | ⬜ |
+| 2.4 | Implement prompt request path | `generateChatResponse()` sends `systemPrompt + history + userMessage` and returns text | ⬜ |
+| 2.5 | Implement `dispose()` | Closes/cleans provider resources | ⬜ |
+| 2.6 | Implement error mapping | Native/provider errors map to user-safe messages and retry states | ⬜ |
+| 2.7 | Implement compatibility surface | Unsupported devices return deterministic unavailability state | ⬜ |
+| 2.8 | Add integration hook in provider router | App chooses `gemini_nano` first when available | ⬜ |
+| 2.9 | Test: initialize + generate on supported Android device | Nano responds with non-empty text for "Hello" | ⬜ |
 
-**Phase 2 Exit Criteria:** `GemmaProvider` can download, initialize, and generate text on an Android device. Returns non-empty string for a simple prompt. Download progress works.
+**Phase 2 Exit Criteria:** `GeminiNanoProvider` initializes and generates text on supported Android devices. Unsupported devices degrade gracefully to fallback path.
+
+---
+
+## Phase 2B: Fallback Provider Implementation (flutter_gemma)
+
+| # | Task | Measurable Output | Status |
+|---|------|-------------------|--------|
+| 2B.1 | Keep `lib/struct/ai/ai_provider_gemma.dart` as fallback provider | File compiles and implements `AiProvider` | ⬜ |
+| 2B.2 | Validate fallback download flow | Model download + progress + cancel works | ⬜ |
+| 2B.3 | Validate fallback initialize/generate flow | Non-empty response for simple prompt | ⬜ |
+| 2B.4 | Wire provider routing fallback | If Nano unavailable/error, app uses Gemma | ⬜ |
+
+**Phase 2B Exit Criteria:** Gemma remains a working fallback path on devices without Gemini Nano support.
 
 ---
 
@@ -149,7 +162,7 @@
 | 6.15 | Implement device incompatible state | Message: "Your device doesn't support on-device AI" | ⬜ |
 | 6.16 | Create `lib/widgets/aiAssistant.dart` | File with `AiAssistantSheet` widget | ⬜ |
 | 6.17 | Implement sheet wrapper | `openBottomSheet()` with `fullSnap: true`, contains `AiAssistantChat`, title "Cashew AI" | ⬜ |
-| 6.18 | Implement provider lifecycle | Initialize `GemmaProvider` on sheet open, dispose on close | ⬜ |
+| 6.18 | Implement provider lifecycle | Initialize active provider on sheet open, dispose on close | ⬜ |
 | 6.19 | Test: chat UI renders on Android device | Sheet opens, input visible, welcome message shown | ⬜ |
 | 6.20 | Test: send message flow end-to-end | Type "add 500 coffee" → AI bubble shows "Added ₹500 expense to Dining" | ⬜ |
 
@@ -165,7 +178,7 @@
 | 7.2 | Modify `lib/pages/settingsPage.dart` | Add `SettingsContainerOpenPage(openPage: AiSettingsPage())` in "Tools & Extras" section | ⬜ |
 | 7.3 | Create `lib/pages/aiSettingsPage.dart` | Full settings page with model management | ⬜ |
 | 7.4 | Implement model status display | Shows: "Not downloaded" / "Downloading (42%)" / "Ready (2.4 GB)" | ⬜ |
-| 7.5 | Implement download button | Triggers `GemmaProvider.downloadModel()` with progress | ⬜ |
+| 7.5 | Implement fallback download button | Triggers `GemmaProvider.downloadModel()` with progress when fallback provider is selected | ⬜ |
 | 7.6 | Implement delete model button | Removes model file, resets `aiModelDownloaded` setting | ⬜ |
 | 7.7 | Implement confirm actions toggle | `SettingsContainerSwitch` for `aiConfirmActions` | ⬜ |
 | 7.8 | Implement send context toggle | `SettingsContainerSwitch` for `aiSendContext` with privacy note | ⬜ |
@@ -217,11 +230,12 @@
 |-------|-------------|-------|-------------|------------|
 | 0 | Project Setup | 3 modified | 1-2h | None |
 | 1 | Types & Abstraction | 3 new | 2-3h | Phase 0 |
-| 2 | LLM Provider | 1 new | 4-6h | Phase 1 |
+| 2 | Gemini Nano Provider (Primary) | 1 new | 4-6h | Phase 1 |
+| 2B | Gemma Provider (Fallback) | existing/new | 2-4h | Phase 2 |
 | 3 | Context & Parser | 2 new | 4-6h | Phase 1 |
 | 4 | Intent Executor | 1 new | 6-8h | Phase 1, 3 |
 | 5 | Response Formatter | 1 new | 2-3h | Phase 1, 4 |
-| 6 | Chat UI | 2 new | 6-8h | Phase 2, 4, 5 |
+| 6 | Chat UI | 2 new | 6-8h | Phase 2, 2B, 4, 5 |
 | 7 | App Integration | 1 new, 3 modified | 3-4h | Phase 6 |
 | 8 | Testing & Polish | 0 new | 4-6h | Phase 7 |
 
