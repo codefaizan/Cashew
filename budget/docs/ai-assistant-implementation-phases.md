@@ -145,26 +145,26 @@
 
 | # | Task | Measurable Output | Status |
 |---|------|-------------------|--------|
-| 6.1 | Create `lib/widgets/aiAssistantChat.dart` | File with `AiAssistantChat` StatefulWidget | ⬜ |
-| 6.2 | Implement message list UI | `ListView.builder` with `AiChatBubble` for each message, auto-scrolls to bottom | ⬜ |
-| 6.3 | Implement user chat bubble | Right-aligned, primary color background, white text | ⬜ |
-| 6.4 | Implement AI chat bubble | Left-aligned, secondary container color, dark text | ⬜ |
-| 6.5 | Implement AI bubble with action button | [View Transaction] / [View Budget] tappable button inside AI bubble | ⬜ |
-| 6.6 | Implement typing indicator | Animated dots shown while LLM generates | ⬜ |
-| 6.7 | Implement text input bar | `TextInput` + send button, auto-focus, submit on Enter | ⬜ |
-| 6.8 | Implement suggestion chips | Horizontal `SelectChips` with: "add 500 coffee", "monthly budget 10k", "how much spent today?" | ⬜ |
-| 6.9 | Implement welcome message | First message in chat: greeting + suggestion chips | ⬜ |
-| 6.10 | Implement send message flow | On send: add user message → show typing → call `AiProvider.generateChatResponse()` → parse intent → execute → format response → add AI bubble | ⬜ |
-| 6.11 | Implement error state in chat | LLM error → AI bubble with error message + retry chip | ⬜ |
-| 6.12 | Implement model not downloaded state | Chat area shows download prompt with progress bar | ⬜ |
-| 6.13 | Implement model download progress | Stream progress 0→100% with cancel button | ⬜ |
-| 6.14 | Implement model initializing state | Loading spinner with "Initializing AI..." text | ⬜ |
-| 6.15 | Implement device incompatible state | Message: "Your device doesn't support on-device AI" | ⬜ |
-| 6.16 | Create `lib/widgets/aiAssistant.dart` | File with `AiAssistantSheet` widget | ⬜ |
-| 6.17 | Implement sheet wrapper | `openBottomSheet()` with `fullSnap: true`, contains `AiAssistantChat`, title "Cashew AI" | ⬜ |
-| 6.18 | Implement provider lifecycle | Initialize active provider on sheet open, dispose on close | ⬜ |
-| 6.19 | Test: chat UI renders on Android device | Sheet opens, input visible, welcome message shown | ⬜ |
-| 6.20 | Test: send message flow end-to-end | Type "add 500 coffee" → AI bubble shows "Added ₹500 expense to Dining" | ⬜ |
+| 6.1 | Create `lib/widgets/aiAssistantChat.dart` | File with `AiAssistantChat` StatefulWidget | ✅ |
+| 6.2 | Implement message list UI | `ListView.builder` with `AiChatBubble` for each message, auto-scrolls to bottom | ✅ |
+| 6.3 | Implement user chat bubble | Right-aligned, primary color background, white text | ✅ |
+| 6.4 | Implement AI chat bubble | Left-aligned, secondary container color, dark text | ✅ |
+| 6.5 | Implement AI bubble with action button | [View Transaction] / [View Budget] tappable button inside AI bubble | ✅ |
+| 6.6 | Implement typing indicator | Animated dots shown while LLM generates | ✅ |
+| 6.7 | Implement text input bar | `TextInput` + send button, auto-focus, submit on Enter | ✅ |
+| 6.8 | Implement suggestion chips | Horizontal `SelectChips` with: "add 500 coffee", "monthly budget 10k", "how much spent today?" | ✅ |
+| 6.9 | Implement welcome message | First message in chat: greeting + suggestion chips | ✅ |
+| 6.10 | Implement send message flow | On send: add user message → show typing → call `AiProvider.generateChatResponse()` → parse intent → execute → format response → add AI bubble | ✅ |
+| 6.11 | Implement error state in chat | LLM error → AI bubble with error message + retry chip | ✅ |
+| 6.12 | Implement model not downloaded state | Chat area shows download prompt with progress bar | ✅ |
+| 6.13 | Implement model download progress | Stream progress 0→100% with cancel button | ✅ |
+| 6.14 | Implement model initializing state | Loading spinner with "Initializing AI..." text | ✅ |
+| 6.15 | Implement device incompatible state | Message: "Your device doesn't support on-device AI" | ✅ |
+| 6.16 | Create `lib/widgets/aiAssistant.dart` | File with `AiAssistantSheet` widget | ✅ |
+| 6.17 | Implement sheet wrapper | `openBottomSheet()` with `fullSnap: true`, contains `AiAssistantChat`, title "Cashew AI" | ✅ |
+| 6.18 | Implement provider lifecycle | Initialize active provider on sheet open, dispose on close | ✅ |
+| 6.19 | Test: chat UI renders on Android device | Sheet opens, input visible, welcome message shown | ✅ |
+| 6.20 | Test: send message flow end-to-end | Type "add 500 coffee" → AI bubble shows "Added ₹500 expense to Dining" | ✅ |
 
 **Phase 6 Exit Criteria:** Chat UI is fully functional. User can type commands and see AI responses. Model download works from within the sheet. All error states handled.
 
