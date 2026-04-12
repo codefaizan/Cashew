@@ -64,26 +64,26 @@
 
 | # | Task | Measurable Output | Status |
 |---|------|-------------------|--------|
-| 3.1 | Create `lib/struct/ai/ai_context_builder.dart` | File with `AiContextBuilder` class | ⬜ |
-| 3.2 | Implement `buildSystemPrompt()` | Returns system prompt string with: role definition, intent schemas, user categories, wallets, budgets, currency, date, few-shot examples, output format | ⬜ |
-| 3.3 | Implement `getUserCategories()` | Queries `database.getAllCategories()`, formats as name list | ⬜ |
-| 3.4 | Implement `getUserWallets()` | Queries `database.getAllWallets()`, formats as name+currency list | ⬜ |
-| 3.5 | Implement `getUserBudgets()` | Queries `database.getAllBudgets()`, formats as name+amount list | ⬜ |
-| 3.6 | Create `lib/struct/ai/ai_intent_parser.dart` | File with `AiIntentParser` class | ⬜ |
-| 3.7 | Implement `parseResponse(String rawOutput)` | Extracts JSON from LLM text (handles surrounding prose), deserializes into `AiIntent` subclass | ⬜ |
-| 3.8 | Implement JSON extraction | Regex to find `{...}` in mixed text output | ⬜ |
-| 3.9 | Implement `AddTransactionIntent` deserialization | JSON → `AddTransactionIntent` with all fields mapped | ⬜ |
-| 3.10 | Implement `AddBudgetIntent` deserialization | JSON → `AddBudgetIntent` with all fields mapped | ⬜ |
-| 3.11 | Implement `AddObjectiveIntent` deserialization | JSON → `AddObjectiveIntent` with all fields mapped | ⬜ |
-| 3.12 | Implement `QuerySpendingIntent` deserialization | JSON → `QuerySpendingIntent` with period/category fields | ⬜ |
-| 3.13 | Implement `QueryBudgetRemainingIntent` deserialization | JSON → `QueryBudgetRemainingIntent` | ⬜ |
-| 3.14 | Implement `QueryNetWorthIntent` deserialization | JSON → `QueryNetWorthIntent` | ⬜ |
-| 3.15 | Implement `NavigateIntent` deserialization | JSON → `NavigateIntent` with target mapping | ⬜ |
-| 3.16 | Implement `PayTransactionIntent` deserialization | JSON → `PayTransactionIntent` | ⬜ |
-| 3.17 | Implement `UnclearIntent` fallback | Invalid/missing JSON → `UnclearIntent` with raw output | ⬜ |
-| 3.18 | Write test: parser handles 10 valid JSON inputs | Each intent type deserialized correctly from LLM-like output | ⬜ |
-| 3.19 | Write test: parser handles 5 invalid inputs | Invalid JSON, empty, partial JSON → `UnclearIntent` | ⬜ |
-| 3.20 | Write test: context builder includes user data | Built prompt contains category names, wallet names, today's date | ⬜ |
+| 3.1 | Create `lib/struct/ai/ai_context_builder.dart` | File with `AiContextBuilder` class | ✅ |
+| 3.2 | Implement `buildSystemPrompt()` | Returns system prompt string with: role definition, intent schemas, user categories, wallets, budgets, currency, date, few-shot examples, output format | ✅ |
+| 3.3 | Implement `getUserCategories()` | Queries `database.getAllCategories()`, formats as name list | ✅ |
+| 3.4 | Implement `getUserWallets()` | Queries `database.getAllWallets()`, formats as name+currency list | ✅ |
+| 3.5 | Implement `getUserBudgets()` | Queries `database.getAllBudgets()`, formats as name+amount list | ✅ |
+| 3.6 | Create `lib/struct/ai/ai_intent_parser.dart` | File with `AiIntentParser` class | ✅ |
+| 3.7 | Implement `parseResponse(String rawOutput)` | Extracts JSON from LLM text (handles surrounding prose), deserializes into `AiIntent` subclass | ✅ |
+| 3.8 | Implement JSON extraction | Regex to find `{...}` in mixed text output | ✅ |
+| 3.9 | Implement `AddTransactionIntent` deserialization | JSON → `AddTransactionIntent` with all fields mapped | ✅ |
+| 3.10 | Implement `AddBudgetIntent` deserialization | JSON → `AddBudgetIntent` with all fields mapped | ✅ |
+| 3.11 | Implement `AddObjectiveIntent` deserialization | JSON → `AddObjectiveIntent` with all fields mapped | ✅ |
+| 3.12 | Implement `QuerySpendingIntent` deserialization | JSON → `QuerySpendingIntent` with period/category fields | ✅ |
+| 3.13 | Implement `QueryBudgetRemainingIntent` deserialization | JSON → `QueryBudgetRemainingIntent` | ✅ |
+| 3.14 | Implement `QueryNetWorthIntent` deserialization | JSON → `QueryNetWorthIntent` | ✅ |
+| 3.15 | Implement `NavigateIntent` deserialization | JSON → `NavigateIntent` with target mapping | ✅ |
+| 3.16 | Implement `PayTransactionIntent` deserialization | JSON → `PayTransactionIntent` | ✅ |
+| 3.17 | Implement `UnclearIntent` fallback | Invalid/missing JSON → `UnclearIntent` with raw output | ✅ |
+| 3.18 | Write test: parser handles 10 valid JSON inputs | Each intent type deserialized correctly from LLM-like output | ✅ |
+| 3.19 | Write test: parser handles 5 invalid inputs | Invalid JSON, empty, partial JSON → `UnclearIntent` | ✅ |
+| 3.20 | Write test: context builder includes user data | Built prompt contains category names, wallet names, today's date | ✅ |
 
 **Phase 3 Exit Criteria:** System prompt is dynamically built with real user data. Parser correctly deserializes all 8 intent types from JSON. Parser gracefully handles all error cases.
 
