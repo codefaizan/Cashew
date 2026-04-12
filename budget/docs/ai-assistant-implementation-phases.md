@@ -93,26 +93,26 @@
 
 | # | Task | Measurable Output | Status |
 |---|------|-------------------|--------|
-| 4.1 | Create `lib/struct/ai/ai_intent_executor.dart` | File with `AiIntentExecutor` class | ⬜ |
-| 4.2 | Implement `execute(AddTransactionIntent)` | Resolves category→Fk, wallet→Fk, creates `Transaction`, calls `database.createOrUpdateTransaction(insert: true)`, calls `addAssociatedTitles()`, returns `AiExecutionResult` | ⬜ |
-| 4.3 | Implement category name resolution | `resolveCategoryFk(name)`: exact match → partial match → associated titles → null (flag for creation) | ⬜ |
-| 4.4 | Implement wallet name resolution | `resolveWalletFk(name)`: exact match → partial match → default wallet | ⬜ |
-| 4.5 | Implement `execute(AddBudgetIntent)` | Resolves categories/wallets, creates `Budget`, calls `database.createOrUpdateBudget(insert: true)` | ⬜ |
-| 4.6 | Implement `execute(AddObjectiveIntent)` | Creates `Objective`, calls `database.createOrUpdateObjective(insert: true)`, auto-creates loan transaction if type=loan | ⬜ |
-| 4.7 | Implement `execute(QuerySpendingIntent)` | Resolves period→DateTimeRange, queries transactions, aggregates by category, returns totals | ⬜ |
-| 4.8 | Implement time period resolution | `resolveTimePeriod(period)`: "today"→today, "this week"→monday-today, "this month"→1st-today, "this year"→jan1-today | ⬜ |
-| 4.9 | Implement `execute(QueryBudgetRemainingIntent)` | Finds budget by name, calculates spent, returns remaining | ⬜ |
-| 4.10 | Implement `execute(QueryNetWorthIntent)` | Sums all wallet balances, returns total | ⬜ |
-| 4.11 | Implement `execute(NavigateIntent)` | Maps target string to page index, calls `PageNavigationFramework.changePage()` | ⬜ |
-| 4.12 | Implement navigation target mapping | "subscriptions"→5, "goals"→14, "settings"→settings page, etc. | ⬜ |
-| 4.13 | Implement `execute(PayTransactionIntent)` | Finds upcoming/subscription by name, calls `markAsPaid()` | ⬜ |
-| 4.14 | Implement `execute(UnclearIntent)` | Returns `AiExecutionResult` with clarification message | ⬜ |
-| 4.15 | Write test: `AddTransactionIntent` creates a transaction | Transaction appears in DB with correct name, amount, categoryFk | ⬜ |
-| 4.16 | Write test: `AddBudgetIntent` creates a budget | Budget appears in DB with correct name, amount, reoccurrence | ⬜ |
-| 4.17 | Write test: category resolution exact match | "Groceries" → existing Groceries categoryFk | ⬜ |
-| 4.18 | Write test: category resolution partial match | "groc" → Groceries categoryFk | ⬜ |
-| 4.19 | Write test: category resolution null | "xyz123" → null, flag for creation | ⬜ |
-| 4.20 | Write test: time period resolution | "this month" → DateTimeRange from 1st to today | ⬜ |
+| 4.1 | Create `lib/struct/ai/ai_intent_executor.dart` | File with `AiIntentExecutor` class | ✅ |
+| 4.2 | Implement `execute(AddTransactionIntent)` | Resolves category→Fk, wallet→Fk, creates `Transaction`, calls `database.createOrUpdateTransaction(insert: true)`, calls `addAssociatedTitles()`, returns `AiExecutionResult` | ✅ |
+| 4.3 | Implement category name resolution | `resolveCategoryFk(name)`: exact match → partial match → associated titles → null (flag for creation) | ✅ |
+| 4.4 | Implement wallet name resolution | `resolveWalletFk(name)`: exact match → partial match → default wallet | ✅ |
+| 4.5 | Implement `execute(AddBudgetIntent)` | Resolves categories/wallets, creates `Budget`, calls `database.createOrUpdateBudget(insert: true)` | ✅ |
+| 4.6 | Implement `execute(AddObjectiveIntent)` | Creates `Objective`, calls `database.createOrUpdateObjective(insert: true)`, auto-creates loan transaction if type=loan | ✅ |
+| 4.7 | Implement `execute(QuerySpendingIntent)` | Resolves period→DateTimeRange, queries transactions, aggregates by category, returns totals | ✅ |
+| 4.8 | Implement time period resolution | `resolveTimePeriod(period)`: "today"→today, "this week"→monday-today, "this month"→1st-today, "this year"→jan1-today | ✅ |
+| 4.9 | Implement `execute(QueryBudgetRemainingIntent)` | Finds budget by name, calculates spent, returns remaining | ✅ |
+| 4.10 | Implement `execute(QueryNetWorthIntent)` | Sums all wallet balances, returns total | ✅ |
+| 4.11 | Implement `execute(NavigateIntent)` | Maps target string to page index, calls `PageNavigationFramework.changePage()` | ✅ |
+| 4.12 | Implement navigation target mapping | "subscriptions"→5, "goals"→14, "settings"→settings page, etc. | ✅ |
+| 4.13 | Implement `execute(PayTransactionIntent)` | Finds upcoming/subscription by name, calls `markAsPaid()` | ✅ |
+| 4.14 | Implement `execute(UnclearIntent)` | Returns `AiExecutionResult` with clarification message | ✅ |
+| 4.15 | Write test: `AddTransactionIntent` creates a transaction | Transaction appears in DB with correct name, amount, categoryFk | ✅ |
+| 4.16 | Write test: `AddBudgetIntent` creates a budget | Budget appears in DB with correct name, amount, reoccurrence | ✅ |
+| 4.17 | Write test: category resolution exact match | "Groceries" → existing Groceries categoryFk | ✅ |
+| 4.18 | Write test: category resolution partial match | "groc" → Groceries categoryFk | ✅ |
+| 4.19 | Write test: category resolution null | "xyz123" → null, flag for creation | ✅ |
+| 4.20 | Write test: time period resolution | "this month" → DateTimeRange from 1st to today | ✅ |
 
 **Phase 4 Exit Criteria:** All 8 intent types execute correctly against the database. Category/wallet resolution works with fuzzy matching. Transactions, budgets, and objectives can be created via intents. Queries return accurate data.
 
