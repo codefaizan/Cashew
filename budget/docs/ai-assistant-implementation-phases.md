@@ -122,20 +122,20 @@
 
 | # | Task | Measurable Output | Status |
 |---|------|-------------------|--------|
-| 5.1 | Create `lib/struct/ai/ai_response_formatter.dart` | File with `AiResponseFormatter` class | ⬜ |
-| 5.2 | Implement `format(AiExecutionResult)` for transaction | "Added ₹1,200 expense to Groceries" | ⬜ |
-| 5.3 | Implement `format(AiExecutionResult)` for budget | "Created budget 'Food' with ₹15,000 monthly limit" | ⬜ |
-| 5.4 | Implement `format(AiExecutionResult)` for objective | "Created goal 'Vacation' — save ₹50,000" | ⬜ |
-| 5.5 | Implement `format(AiExecutionResult)` for spending query | "You spent ₹12,450 this month across 8 transactions. Top: Groceries ₹4,200, Dining ₹3,100" | ⬜ |
-| 5.6 | Implement `format(AiExecutionResult)` for budget remaining query | "Budget 'Food' has ₹8,500 remaining of ₹15,000 (57% used)" | ⬜ |
-| 5.7 | Implement `format(AiExecutionResult)` for net worth query | "Your net worth is ₹2,45,000 across 3 accounts" | ⬜ |
-| 5.8 | Implement `format(AiExecutionResult)` for navigate | "Opening Subscriptions..." | ⬜ |
-| 5.9 | Implement `format(AiExecutionResult)` for pay | "Marked Netflix subscription as paid" | ⬜ |
-| 5.10 | Implement `format(AiExecutionResult)` for error | "Something went wrong. Please try again." | ⬜ |
-| 5.11 | Implement `format(AiExecutionResult)` for unclear | "I didn't understand that. Could you rephrase?" | ⬜ |
-| 5.12 | Implement action button generation | `getViewAction(AiExecutionResult)` → label + route for [View Transaction], [View Budget], etc. | ⬜ |
-| 5.13 | Use `convertToMoney()` for all currency formatting | All amounts formatted with user's currency settings | ⬜ |
-| 5.14 | Write test: formatter produces correct strings for all 8 intent results | 8 test cases pass | ⬜ |
+| 5.1 | Create `lib/struct/ai/ai_response_formatter.dart` | File with `AiResponseFormatter` class | ✅ |
+| 5.2 | Implement `format(AiExecutionResult)` for transaction | "Added ₹1,200 expense to Groceries" | ✅ |
+| 5.3 | Implement `format(AiExecutionResult)` for budget | "Created budget 'Food' with ₹15,000 monthly limit" | ✅ |
+| 5.4 | Implement `format(AiExecutionResult)` for objective | "Created goal 'Vacation' — save ₹50,000" | ✅ |
+| 5.5 | Implement `format(AiExecutionResult)` for spending query | "You spent ₹12,450 this month across 8 transactions. Top: Groceries ₹4,200, Dining ₹3,100" | ✅ |
+| 5.6 | Implement `format(AiExecutionResult)` for budget remaining query | "Budget 'Food' has ₹8,500 remaining of ₹15,000 (57% used)" | ✅ |
+| 5.7 | Implement `format(AiExecutionResult)` for net worth query | "Your net worth is ₹2,45,000 across 3 accounts" | ✅ |
+| 5.8 | Implement `format(AiExecutionResult)` for navigate | "Opening Subscriptions..." | ✅ |
+| 5.9 | Implement `format(AiExecutionResult)` for pay | "Marked Netflix subscription as paid" | ✅ |
+| 5.10 | Implement `format(AiExecutionResult)` for error | "Something went wrong. Please try again." | ✅ |
+| 5.11 | Implement `format(AiExecutionResult)` for unclear | "I didn't understand that. Could you rephrase?" | ✅ |
+| 5.12 | Implement action button generation | `getViewAction(AiExecutionResult)` → label + route for [View Transaction], [View Budget], etc. | ✅ |
+| 5.13 | Use `convertToMoney()` for all currency formatting | All amounts formatted with user's currency settings | ✅ |
+| 5.14 | Write test: formatter produces correct strings for all 8 intent results | 8 test cases pass | ✅ |
 
 **Phase 5 Exit Criteria:** All execution results produce natural language strings. Currency formatting respects user settings. Action buttons link to correct detail pages.
 
