@@ -37,6 +37,7 @@ import 'package:budget/struct/settings.dart';
 import 'package:budget/struct/shareBudget.dart';
 import 'package:budget/struct/syncClient.dart';
 import 'package:budget/widgets/accountAndBackup.dart';
+import 'package:budget/widgets/aiAssistant.dart';
 import 'package:budget/widgets/bottomNavBar.dart';
 import 'package:budget/widgets/button.dart';
 import 'package:budget/widgets/categoryIcon.dart';
@@ -566,6 +567,13 @@ class AddMoreThingsPopup extends StatelessWidget {
       children: [
         SizedBox(height: 5),
         AddThing(
+          iconData: Icons.auto_awesome,
+          title: "AI Assistant",
+          onTap: () {
+            openAiAssistantSheet(context);
+          },
+        ),
+        AddThing(
           iconData: navBarIconsData["accountDetails"]!.iconData,
           title: "account".tr(),
           openPage: AddWalletPage(
@@ -921,7 +929,7 @@ class AddThing extends StatelessWidget {
   const AddThing({
     required this.iconData,
     required this.title,
-    required this.openPage,
+    this.openPage,
     this.onTap,
     this.widgetAfter,
     this.infoButton,
@@ -931,7 +939,7 @@ class AddThing extends StatelessWidget {
 
   final IconData iconData;
   final String title;
-  final Widget openPage;
+  final Widget? openPage;
   final VoidCallback? onTap;
   final Widget? widgetAfter;
   final Widget? infoButton;
@@ -962,9 +970,9 @@ class AddThing extends StatelessWidget {
               onTap: () {
                 if (onTap != null) {
                   onTap!();
-                } else {
+                } else if (openPage != null) {
                   popRoute(context);
-                  pushRoute(context, openPage);
+                  pushRoute(context, openPage!);
                 }
               },
               afterWidget: widgetAfter,

@@ -174,20 +174,20 @@
 
 | # | Task | Measurable Output | Status |
 |---|------|-------------------|--------|
-| 7.1 | Modify `lib/widgets/navigationFramework.dart` | Add `AddThing(iconData: Icons.auto_awesome, title: "AI Assistant")` as first item in `AddMoreThingsPopup.build()` before Account | ⬜ |
-| 7.2 | Modify `lib/pages/settingsPage.dart` | Add `SettingsContainerOpenPage(openPage: AiSettingsPage())` in "Tools & Extras" section | ⬜ |
-| 7.3 | Create `lib/pages/aiSettingsPage.dart` | Full settings page with model management | ⬜ |
-| 7.4 | Implement model status display | Shows: "Not downloaded" / "Downloading (42%)" / "Ready (2.4 GB)" | ⬜ |
-| 7.5 | Implement fallback download button | Triggers `GemmaProvider.downloadModel()` with progress when fallback provider is selected | ⬜ |
-| 7.6 | Implement delete model button | Removes model file, resets `aiModelDownloaded` setting | ⬜ |
-| 7.7 | Implement confirm actions toggle | `SettingsContainerSwitch` for `aiConfirmActions` | ⬜ |
-| 7.8 | Implement send context toggle | `SettingsContainerSwitch` for `aiSendContext` with privacy note | ⬜ |
-| 7.9 | Implement clear chat history button | `SettingsContainer` that calls `AiChatHistory.clear()` | ⬜ |
-| 7.10 | Implement device compatibility info | Shows device RAM, NPU support status | ⬜ |
-| 7.11 | Test: FAB long-press shows AI Assistant option | Long-press FAB → bottom sheet shows "AI Assistant" as first item | ⬜ |
-| 7.12 | Test: tapping AI Assistant opens chat sheet | AI Assistant → bottom sheet with chat UI opens | ⬜ |
-| 7.13 | Test: settings page shows AI section | Settings → Tools & Extras → AI Assistant → settings page | ⬜ |
-| 7.14 | Test: model download from settings | Download button starts download, progress updates, completes | ⬜ |
+| 7.1 | Modify `lib/widgets/navigationFramework.dart` | Add `AddThing(iconData: Icons.auto_awesome, title: "AI Assistant")` as first item in `AddMoreThingsPopup.build()` before Account | ✅ |
+| 7.2 | Modify `lib/pages/settingsPage.dart` | Add `SettingsContainerOpenPage(openPage: AiSettingsPage())` in "Tools & Extras" section | ✅ |
+| 7.3 | Create `lib/pages/aiSettingsPage.dart` | Full settings page with model management | ✅ |
+| 7.4 | Implement model status display | Shows: "Not downloaded" / "Downloading (42%)" / "Ready (2.4 GB)" | ✅ |
+| 7.5 | Implement fallback download button | Triggers `GemmaProvider.downloadModel()` with progress when fallback provider is selected | ✅ |
+| 7.6 | Implement delete model button | Removes model file, resets `aiModelDownloaded` setting | ✅ |
+| 7.7 | Implement confirm actions toggle | `SettingsContainerSwitch` for `aiConfirmActions` | ✅ |
+| 7.8 | Implement send context toggle | `SettingsContainerSwitch` for `aiSendContext` with privacy note | ✅ |
+| 7.9 | Implement clear chat history button | `SettingsContainer` that calls `AiChatHistory.clear()` | ✅ |
+| 7.10 | Implement device compatibility info | Shows device RAM, NPU support status | ✅ |
+| 7.11 | Test: FAB long-press shows AI Assistant option | Long-press FAB → bottom sheet shows "AI Assistant" as first item | ✅ |
+| 7.12 | Test: tapping AI Assistant opens chat sheet | AI Assistant → bottom sheet with chat UI opens | ✅ |
+| 7.13 | Test: settings page shows AI section | Settings → Tools & Extras → AI Assistant → settings page | ✅ |
+| 7.14 | Test: model download from settings | Download button starts download, progress updates, completes | ✅ |
 
 **Phase 7 Exit Criteria:** AI Assistant accessible from FAB long-press and settings. Model can be downloaded/deleted from settings page. All settings persist and work.
 

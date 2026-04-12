@@ -14,7 +14,10 @@ import 'package:budget/pages/transactionsListPage.dart';
 import 'package:budget/pages/upcomingOverdueTransactionsPage.dart';
 import 'package:budget/struct/currencyFunctions.dart';
 import 'package:budget/struct/defaultPreferences.dart';
+import 'package:budget/struct/ai/ai_chat_history.dart';
 import 'package:budget/struct/ai/ai_provider_factory.dart';
+import 'package:budget/struct/ai/ai_provider_gemini_nano.dart';
+import 'package:budget/struct/ai/ai_provider_gemma.dart';
 import 'package:budget/struct/languageMap.dart';
 import 'package:budget/struct/navBarIconsData.dart';
 import 'package:budget/widgets/animatedExpanded.dart';
@@ -2012,6 +2015,110 @@ class _AiProviderSettingsState extends State<AiProviderSettings> {
                               ),
                             ),
                           );
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    SettingsContainerSwitch(
+                      title: "Confirm Actions",
+                      icon: appStateSettings["outlinedIcons"]
+                          ? Icons.check_circle_outline
+                          : Icons.check_circle_outline,
+                      initialValue:
+                          appStateSettings["aiConfirmActions"] == true,
+                      onSwitched: (value) async {
+                        await updateSettings(
+                          "aiConfirmActions",
+                          value,
+                          updateGlobalState: false,
+                        );
+                        setModalState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    SettingsContainerSwitch(
+                      title: "Send Context",
+                      description: "Include recent transactions and categories",
+                      icon: appStateSettings["outlinedIcons"]
+                          ? Icons.send_outlined
+                          : Icons.send_rounded,
+                      initialValue: appStateSettings["aiSendContext"] == true,
+                      onSwitched: (value) async {
+                        await updateSettings(
+                          "aiSendContext",
+                          value,
+                          updateGlobalState: false,
+                        );
+                        setModalState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    SettingsContainer(
+                      title: "Clear Chat History",
+                      icon: appStateSettings["outlinedIcons"]
+                          ? Icons.delete_outline
+                          : Icons.delete_rounded,
+                      onTap: () async {
+                        final AiChatHistory chatHistory = AiChatHistory();
+                        chatHistory.clear();
+                        setModalState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    Builder(
+                      builder: (context) {
+                        return FutureBuilder<bool>(
+                          future: GeminiNanoProvider.isDeviceCompatible(),
+                          builder: (context, snapshot) {
+                            final isCompatible = snapshot.data ?? false;
+                            final isDownloaded =
+                                appStateSettings["aiModelDownloaded"] == true;
+                            String statusText;
+                            if (!isCompatible) {
+                              statusText = "Not compatible";
+                            } else if (isDownloaded) {
+                              statusText = "Ready";
+                            } else {
+                              statusText = "Not downloaded";
+                            }
+                            return SettingsContainer(
+                              title: "Model Status",
+                              icon: appStateSettings["outlinedIcons"]
+                                  ? Icons.smart_toy_outlined
+                                  : Icons.smart_toy_rounded,
+                              description: statusText,
+                              onTap: null,
+                            );
+                          },
+                        );
+                      },
+                    ),
+                    if (_selectedProvider == AiProviderFactory.gemmaKey) ...[
+                      const SizedBox(height: 10),
+                      SettingsContainer(
+                        title: "Download Model",
+                        icon: appStateSettings["outlinedIcons"]
+                            ? Icons.download_outlined
+                            : Icons.download_rounded,
+                        onTap: () async {
+                          final provider = GemmaProvider();
+                          await provider.downloadModel(
+                              onProgress: (progress) {});
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      SettingsContainer(
+                        title: "Delete Model",
+                        icon: appStateSettings["outlinedIcons"]
+                            ? Icons.delete_forever_outlined
+                            : Icons.delete_forever_rounded,
+                        onTap: () async {
+                          await updateSettings(
+                            "aiModelDownloaded",
+                            false,
+                            updateGlobalState: false,
+                          );
+                          setModalState(() {});
                         },
                       ),
                     ],
