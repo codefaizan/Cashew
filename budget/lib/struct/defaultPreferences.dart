@@ -336,6 +336,9 @@ Future<Map<String, dynamic>> getDefaultPreferences() async {
     "aiSendContext": true,
     "aiChatHistory": <String>[],
     "aiLastUsedProvider": "gemini_nano",
+    "aiOpenAiApiKey": "",
+    "aiOpenAiBaseUrl": "https://api.openai.com/v1",
+    "aiOpenAiModel": "gpt-3.5-turbo",
   };
 }
 

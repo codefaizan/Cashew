@@ -101,6 +101,7 @@ dependencies:
   flutter_colorpicker: ^1.1.0
   flutter_gemma: ^0.13.2
   flutter_plugin_android_lifecycle: ^2.0.34
+  http: ^1.2.0
   
 # flutter pub run flutter_launcher_icons:main
 flutter_icons:

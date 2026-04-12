@@ -14,6 +14,7 @@ import 'package:budget/pages/transactionsListPage.dart';
 import 'package:budget/pages/upcomingOverdueTransactionsPage.dart';
 import 'package:budget/struct/currencyFunctions.dart';
 import 'package:budget/struct/defaultPreferences.dart';
+import 'package:budget/struct/ai/ai_provider_factory.dart';
 import 'package:budget/struct/languageMap.dart';
 import 'package:budget/struct/navBarIconsData.dart';
 import 'package:budget/widgets/animatedExpanded.dart';
@@ -568,6 +569,8 @@ class SettingsPageContent extends StatelessWidget {
         //   title: "Auto Transactions",
         //   icon: appStateSettings["outlinedIcons"] ? Icons.auto_fix_high_outlined : Icons.auto_fix_high_rounded,
         // ),
+
+        AiProviderSettings(),
 
         appStateSettings["emailScanning"]
             ? SettingsContainerOpenPage(
@@ -1818,4 +1821,207 @@ List<String> getWeekdayNames() {
   }
 
   return localizedWeekdayNames;
+}
+
+class AiProviderSettings extends StatefulWidget {
+  const AiProviderSettings({super.key});
+
+  @override
+  State<AiProviderSettings> createState() => _AiProviderSettingsState();
+}
+
+class _AiProviderSettingsState extends State<AiProviderSettings> {
+  String _selectedProvider = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedProvider = (appStateSettings["aiLastUsedProvider"] as String?) ??
+        AiProviderFactory.geminiNanoKey;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsContainer(
+      title: "AI Settings",
+      icon: appStateSettings["outlinedIcons"]
+          ? Icons.psychology_outlined
+          : Icons.psychology_rounded,
+      onTap: () {
+        openBottomSheet(
+          context,
+          PopupFramework(
+            title: "AI Assistant Settings",
+            child: StatefulBuilder(
+              builder: (context, setModalState) {
+                return Column(
+                  children: [
+                    SettingsContainerDropdown(
+                      title: "AI Provider",
+                      icon: appStateSettings["outlinedIcons"]
+                          ? Icons.memory_outlined
+                          : Icons.memory_rounded,
+                      initial: _selectedProvider,
+                      items: [
+                        AiProviderFactory.geminiNanoKey,
+                        AiProviderFactory.openAiKey,
+                        AiProviderFactory.gemmaKey,
+                      ],
+                      onChanged: (value) async {
+                        setModalState(() {
+                          _selectedProvider = value;
+                        });
+                        await updateSettings(
+                          "aiLastUsedProvider",
+                          value,
+                          updateGlobalState: false,
+                        );
+                      },
+                      getLabel: (item) {
+                        switch (item) {
+                          case AiProviderFactory.geminiNanoKey:
+                            return "Gemini Nano (On-Device)";
+                          case AiProviderFactory.openAiKey:
+                            return "OpenAI (API)";
+                          case AiProviderFactory.gemmaKey:
+                            return "Gemma (On-Device)";
+                          default:
+                            return item;
+                        }
+                      },
+                    ),
+                    if (_selectedProvider == AiProviderFactory.openAiKey) ...[
+                      const SizedBox(height: 10),
+                      SettingsContainer(
+                        title: "OpenAI API Key",
+                        icon: appStateSettings["outlinedIcons"]
+                            ? Icons.key_outlined
+                            : Icons.key_rounded,
+                        description:
+                            appStateSettings["aiOpenAiApiKey"] != null &&
+                                    appStateSettings["aiOpenAiApiKey"]
+                                        .toString()
+                                        .isNotEmpty
+                                ? "API key configured"
+                                : "No API key set",
+                        onTap: () {
+                          openBottomSheet(
+                            context,
+                            popupWithKeyboard: true,
+                            PopupFramework(
+                              title: "OpenAI API Key",
+                              child: SelectText(
+                                buttonLabel: "Save",
+                                icon: appStateSettings["outlinedIcons"]
+                                    ? Icons.key_outlined
+                                    : Icons.key_rounded,
+                                setSelectedText: (_) {},
+                                nextWithInput: (text) {
+                                  updateSettings(
+                                    "aiOpenAiApiKey",
+                                    text.trim(),
+                                    updateGlobalState: false,
+                                  );
+                                  setModalState(() {});
+                                },
+                                selectedText:
+                                    (appStateSettings["aiOpenAiApiKey"]
+                                            as String?) ??
+                                        "",
+                                placeholder: "sk-...",
+                                autoFocus: true,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      SettingsContainer(
+                        title: "OpenAI Base URL",
+                        icon: appStateSettings["outlinedIcons"]
+                            ? Icons.link_outlined
+                            : Icons.link_rounded,
+                        description:
+                            (appStateSettings["aiOpenAiBaseUrl"] as String?) ??
+                                "https://api.openai.com/v1",
+                        onTap: () {
+                          openBottomSheet(
+                            context,
+                            popupWithKeyboard: true,
+                            PopupFramework(
+                              title: "OpenAI Base URL",
+                              child: SelectText(
+                                buttonLabel: "Save",
+                                icon: appStateSettings["outlinedIcons"]
+                                    ? Icons.link_outlined
+                                    : Icons.link_rounded,
+                                setSelectedText: (_) {},
+                                nextWithInput: (text) {
+                                  updateSettings(
+                                    "aiOpenAiBaseUrl",
+                                    text.trim(),
+                                    updateGlobalState: false,
+                                  );
+                                  setModalState(() {});
+                                },
+                                selectedText:
+                                    (appStateSettings["aiOpenAiBaseUrl"]
+                                            as String?) ??
+                                        "https://api.openai.com/v1",
+                                placeholder: "https://api.openai.com/v1",
+                                autoFocus: true,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      SettingsContainer(
+                        title: "OpenAI Model",
+                        icon: appStateSettings["outlinedIcons"]
+                            ? Icons.model_training_outlined
+                            : Icons.model_training_rounded,
+                        description:
+                            (appStateSettings["aiOpenAiModel"] as String?) ??
+                                "gpt-3.5-turbo",
+                        onTap: () {
+                          openBottomSheet(
+                            context,
+                            popupWithKeyboard: true,
+                            PopupFramework(
+                              title: "OpenAI Model",
+                              child: SelectText(
+                                buttonLabel: "Save",
+                                icon: appStateSettings["outlinedIcons"]
+                                    ? Icons.model_training_outlined
+                                    : Icons.model_training_rounded,
+                                setSelectedText: (_) {},
+                                nextWithInput: (text) {
+                                  updateSettings(
+                                    "aiOpenAiModel",
+                                    text.trim(),
+                                    updateGlobalState: false,
+                                  );
+                                  setModalState(() {});
+                                },
+                                selectedText: (appStateSettings["aiOpenAiModel"]
+                                        as String?) ??
+                                    "gpt-3.5-turbo",
+                                placeholder: "gpt-3.5-turbo",
+                                autoFocus: true,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
