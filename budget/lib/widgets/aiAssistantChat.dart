@@ -1,5 +1,8 @@
+import 'dart:math';
+
 import 'package:budget/colors.dart';
 import 'package:budget/database/tables.dart';
+import 'package:budget/functions.dart';
 import 'package:budget/struct/ai/ai_chat_history.dart';
 import 'package:budget/struct/ai/ai_context_builder.dart';
 import 'package:budget/struct/ai/ai_intent_executor.dart';
@@ -10,7 +13,6 @@ import 'package:budget/struct/ai/ai_provider_factory.dart';
 import 'package:budget/struct/ai/ai_provider_gemini_nano.dart';
 import 'package:budget/struct/ai/ai_response_formatter.dart';
 import 'package:budget/struct/databaseGlobal.dart';
-import 'package:budget/struct/defaultPreferences.dart';
 import 'package:budget/struct/settings.dart';
 import 'package:budget/widgets/fadeIn.dart';
 import 'package:budget/widgets/tappable.dart';
@@ -144,12 +146,76 @@ class _AiAssistantChatState extends State<AiAssistantChat> {
     });
   }
 
+  Future<AllWallets> _getAllWallets() async {
+    final wallets = await database.getAllWallets();
+    return AllWallets(
+      list: wallets,
+      indexedByPk: {for (final w in wallets) w.walletPk: w},
+    );
+  }
+
+  Future<String> _craftMessageWithLlm(
+      String userQuery, AiExecutionResult result, AllWallets allWallets) async {
+    final actionType = result.actionType ?? 'unknown';
+    final createdObject = result.createdObject;
+
+    String contextInfo = '';
+    if (createdObject is Map) {
+      if (actionType == 'spending_query') {
+        final total = (createdObject['total'] as num?)?.toDouble() ?? 0;
+        final count = createdObject['count'] ?? 0;
+        final period = createdObject['period'] ?? 'month';
+        final formattedTotal = convertToMoney(allWallets, total.abs());
+        contextInfo =
+            'User asked about spending. Result: Total $formattedTotal, $count transactions for $period.';
+      } else if (actionType == 'net_worth_query') {
+        final total = (createdObject['total'] as num?)?.toDouble() ?? 0;
+        final walletCount = createdObject['walletCount'] ?? 0;
+        final formattedTotal = convertToMoney(allWallets, total.abs());
+        contextInfo =
+            'User asked about net worth. Result: Total $formattedTotal across $walletCount accounts.';
+      } else if (actionType == 'transaction_created') {
+        contextInfo =
+            'User requested to create a transaction. Result: Success.';
+      } else if (actionType == 'budget_created') {
+        contextInfo = 'User requested to create a budget. Result: Success.';
+      } else if (actionType == 'budget_remaining_query') {
+        final remaining = (createdObject['remaining'] as num?)?.toDouble() ?? 0;
+        final spent = (createdObject['spent'] as num?)?.toDouble() ?? 0;
+        final percentUsed =
+            (createdObject['percentUsed'] as num?)?.toDouble() ?? 0;
+        final formattedRemaining = convertToMoney(allWallets, remaining.abs());
+        final formattedSpent = convertToMoney(allWallets, spent.abs());
+        contextInfo =
+            'User asked about budget remaining. Result: Spent $formattedSpent, Remaining $formattedRemaining (${percentUsed.toStringAsFixed(0)}% used).';
+      } else {
+        contextInfo = 'Action type: $actionType, Result data: $createdObject';
+      }
+    }
+
+    final craftingPrompt = '''You are a friendly finance assistant. 
+User said: "$userQuery"
+$contextInfo
+
+Write a natural, friendly response (1-2 sentences max). Don't mention the details unless relevant.''';
+
+    final response = await _provider!.generateChatResponse(
+      systemPrompt: '',
+      history: [],
+      userMessage: craftingPrompt,
+    );
+
+    return response;
+  }
+
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
     if (_provider == null || _state != AiChatState.ready) return;
 
-    _messages.add(AiChatMessage(isUser: true, text: text));
-    _messages.add(AiChatMessage(isUser: false, text: '', isTyping: true));
+    setState(() {
+      _messages.add(AiChatMessage(isUser: true, text: text));
+      _messages.add(AiChatMessage(isUser: false, text: '', isTyping: true));
+    });
     _scrollToBottom();
 
     _chatHistory?.addMessage(ChatMessage(role: 'user', content: text));
@@ -157,6 +223,8 @@ class _AiAssistantChatState extends State<AiAssistantChat> {
     try {
       final contextBuilder = AiContextBuilder();
       final systemPrompt = await contextBuilder.buildSystemPrompt();
+      print(
+          '=== AI PROMPT ===\n$systemPrompt\n=== USER MESSAGE ===\n$text\n===================');
 
       final response = await _provider!.generateChatResponse(
         systemPrompt: systemPrompt,
@@ -164,7 +232,11 @@ class _AiAssistantChatState extends State<AiAssistantChat> {
         userMessage: text,
       );
 
-      _messages.removeLast();
+      print('=== AI RESPONSE ===\n$response\n===================');
+
+      setState(() {
+        _messages.removeLast();
+      });
 
       _chatHistory
           ?.addMessage(ChatMessage(role: 'assistant', content: response));
@@ -172,27 +244,62 @@ class _AiAssistantChatState extends State<AiAssistantChat> {
       final parser = AiIntentParser();
       final intent = parser.parseResponse(response);
 
+      String periodInfo = '';
+      if (intent is QuerySpendingIntent) {
+        periodInfo = ', period: ${intent.period}';
+      } else if (intent is AddTransactionIntent) {
+        periodInfo = ', periodLength: ${intent.periodLength}';
+      } else if (intent is AddBudgetIntent) {
+        periodInfo = ', periodLength: ${intent.periodLength}';
+      }
+      print(
+          '=== PARSED INTENT ===\nType: ${intent.runtimeType}$periodInfo\n===================');
+
       final executor = AiIntentExecutor();
       final result = await executor.execute(intent);
 
-      final formatter = AiResponseFormatter();
-      final formattedMessage = formatter.format(result);
+      final allWallets = await _getAllWallets();
 
-      _messages.add(AiChatMessage(
-        isUser: false,
-        text: formattedMessage,
-        executionResult: result,
-      ));
-    } catch (e) {
-      _messages.removeLast();
+      String formattedMessage;
+      if (appStateSettings['aiUseLlmForMessages'] == true) {
+        try {
+          formattedMessage =
+              await _craftMessageWithLlm(text, result, allWallets);
+        } catch (e) {
+          print('=== LLM MESSAGE CRAFTING FAILED === $e');
+          final formatter = AiResponseFormatter(allWallets: allWallets);
+          formattedMessage = formatter.format(result);
+        }
+      } else {
+        final formatter = AiResponseFormatter(allWallets: allWallets);
+        formattedMessage = formatter.format(result);
+      }
+
       setState(() {
+        _messages.add(AiChatMessage(
+          isUser: false,
+          text: formattedMessage,
+          executionResult: result,
+        ));
+      });
+    } catch (e) {
+      print('=== CHAT ERROR === $e');
+      setState(() {
+        _messages.removeLast();
         _state = AiChatState.error;
         _errorMessage = e.toString();
+        String errorMessage = 'Sorry, something went wrong. Please try again.';
+        if (e.toString().contains('rate limit')) {
+          errorMessage =
+              'Rate limit exceeded. Please wait a moment and try again.';
+        } else if (e.toString().contains('429')) {
+          errorMessage = 'Too many requests. Please try again later.';
+        }
+        _messages.add(AiChatMessage(
+          isUser: false,
+          text: errorMessage,
+        ));
       });
-      _messages.add(AiChatMessage(
-        isUser: false,
-        text: 'Sorry, something went wrong. Please try again.',
-      ));
     }
 
     _scrollToBottom();
@@ -342,12 +449,14 @@ class _AiAssistantChatState extends State<AiAssistantChat> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextFont(
-                text: message.text,
-                fontSize: 15,
-                textColor: message.isUser
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : Theme.of(context).colorScheme.onSurface,
+              Text(
+                message.text,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: message.isUser
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : Theme.of(context).colorScheme.onSurface,
+                ),
               ),
               if (message.executionResult != null)
                 _buildActionButton(message.executionResult!),
@@ -375,10 +484,11 @@ class _AiAssistantChatState extends State<AiAssistantChat> {
           children: [
             _AnimatedDots(),
             SizedBox(width: 8),
-            TextFont(
-              text: 'Thinking...',
-              fontSize: 14,
-              textColor: getColor(context, 'textColorLesser'),
+            ValueListenableBuilder<String>(
+              valueListenable: _AnimatedDotsState.verbNotifier,
+              builder: (context, verb, _) {
+                return _TypingVerbText(verb: verb);
+              },
             ),
           ],
         ),
@@ -396,8 +506,6 @@ class _AiAssistantChatState extends State<AiAssistantChat> {
       padding: const EdgeInsets.only(top: 8),
       child: Tappable(
         onTap: () {
-          // Handle navigation based on action.route
-          // For now, we just close the sheet
           widget.onClose?.call();
         },
         color: Colors.transparent,
@@ -505,6 +613,36 @@ class _AnimatedDotsState extends State<_AnimatedDots>
     with TickerProviderStateMixin {
   late final List<AnimationController> _controllers;
   late final List<Animation<double>> _animations;
+  static const _verbs = [
+    'Thinking',
+    'Processing',
+    'Analyzing',
+    'Computing',
+    'Generating',
+    'Consulting',
+    'Reasoning',
+    'Calculating',
+    'Synthesizing',
+    'Inferring',
+    'Learning',
+    'Adapting',
+    'Optimizing',
+    'Evaluating',
+    'Classifying',
+    'Searching',
+    'Retrieving',
+    'Matching',
+    'Filtering',
+    'Prioritizing',
+    'Deciding',
+    'Predicting',
+    'Assessing',
+    'Refining',
+    'Executing'
+  ];
+  static final verbNotifier = ValueNotifier<String>('Thinking');
+  final _random = Random();
+  int _verbIndex = 0;
 
   @override
   void initState() {
@@ -530,6 +668,14 @@ class _AnimatedDotsState extends State<_AnimatedDots>
         }
       });
     }
+
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return false;
+      _verbIndex = _random.nextInt(_verbs.length);
+      verbNotifier.value = _verbs[_verbIndex];
+      return mounted;
+    });
   }
 
   @override
@@ -563,6 +709,71 @@ class _AnimatedDotsState extends State<_AnimatedDots>
           },
         );
       }),
+    );
+  }
+}
+
+class _TypingVerbText extends StatefulWidget {
+  final String verb;
+  const _TypingVerbText({required this.verb});
+  @override
+  State<_TypingVerbText> createState() => _TypingVerbTextState();
+}
+
+class _TypingVerbTextState extends State<_TypingVerbText>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late Animation<int> _textAnimation;
+  String _displayText = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: widget.verb.length * 30 + 100),
+    );
+    _textAnimation = IntTween(begin: 0, end: widget.verb.length).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    _textAnimation.addListener(() {
+      setState(
+          () => _displayText = widget.verb.substring(0, _textAnimation.value));
+    });
+    _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(_TypingVerbText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.verb != widget.verb) {
+      _controller.reset();
+      _controller.duration =
+          Duration(milliseconds: widget.verb.length * 50 + 100);
+      _textAnimation = IntTween(begin: 0, end: widget.verb.length).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      );
+      _textAnimation.addListener(() {
+        if (mounted)
+          setState(() =>
+              _displayText = widget.verb.substring(0, _textAnimation.value));
+      });
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFont(
+      text: '$_displayText...',
+      fontSize: 14,
+      textColor: Theme.of(context).colorScheme.onSurface,
     );
   }
 }

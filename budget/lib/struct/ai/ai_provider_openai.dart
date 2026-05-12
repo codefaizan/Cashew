@@ -63,6 +63,8 @@ class OpenAiProvider implements AiProvider {
         {'role': 'user', 'content': userMessage},
       ];
 
+      print('=== OPENAI REQUEST === messages count: ${messages.length}');
+
       final response = await http
           .post(
             Uri.parse('$_baseUrl/chat/completions'),
@@ -79,6 +81,8 @@ class OpenAiProvider implements AiProvider {
           .timeout(
             const Duration(seconds: 90),
           );
+
+      print('=== OPENAI RESPONSE === status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -97,6 +101,7 @@ class OpenAiProvider implements AiProvider {
         throw StateError('OpenAI API key is invalid or expired.');
       } else if (response.statusCode == 429) {
         _lastErrorCode = 'rate-limit';
+        print('=== OPENAI ERROR === Rate limited!');
         throw StateError('OpenAI rate limit exceeded. Please try again later.');
       } else {
         _lastErrorCode = 'api-error';

@@ -1,0 +1,4 @@
+{
+    "opencode.chatModel": "opencode/big-pickle",
+    "opencode.assumeExternalReviewWhenModeUnknown": true
+}

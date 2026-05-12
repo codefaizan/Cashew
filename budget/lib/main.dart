@@ -37,12 +37,13 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'firebase_options.dart';
 import 'package:easy_localization/easy_localization.dart';
 
-// Requires hot restart when changed
+// Debug flags - requires hot restart when changed
 bool enableDevicePreview = false && kDebugMode;
 bool allowDebugFlags = true || kIsWeb;
 bool allowDangerousDebugFlags = kDebugMode;
 bool firebaseStartupAvailable = true;
 
+// Main entry point - initializes all core services before running the app
 void main() async {
   captureLogs(() async {
     WidgetsFlutterBinding.ensureInitialized();

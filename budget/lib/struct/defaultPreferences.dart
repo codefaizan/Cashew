@@ -174,6 +174,7 @@ Future<Map<String, dynamic>> getDefaultPreferences() async {
     "font": "Avenir",
     "forceSmallHeader": false,
     "animationSpeed": 1.0,
+    "aiAccessButton": "fabShortcut", // "fabShortcut" or "doubleTap"
     "logging": false,
     "sharedBudgets": false,
     "emailScanning": false,

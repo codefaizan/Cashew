@@ -12,6 +12,7 @@ class AddFAB extends StatelessWidget {
   const AddFAB({
     this.openPage,
     this.onTap,
+    this.onDoubleTap,
     this.tooltip,
     this.enableLongPress = false,
     this.color,
@@ -20,6 +21,7 @@ class AddFAB extends StatelessWidget {
   });
   final Widget? openPage;
   final VoidCallback? onTap;
+  final VoidCallback? onDoubleTap;
   final String? tooltip;
   final bool enableLongPress;
   final Color? color;
@@ -36,16 +38,19 @@ class AddFAB extends StatelessWidget {
           : Icons.add_rounded,
       openPage: openPage,
       onTap: onTap,
+      onDoubleTap: onDoubleTap,
       fabSize: getIsFullScreen(context) == false ? 60 : 70,
       borderRadius: getIsFullScreen(context) == false ? 18 : 22,
-      onLongPress: () {
-        openBottomSheet(
-          context,
-          PopupFramework(
-            child: AddMoreThingsPopup(),
-          ),
-        );
-      },
+      onLongPress: enableLongPress
+          ? () {
+              openBottomSheet(
+                context,
+                PopupFramework(
+                  child: AddMoreThingsPopup(),
+                ),
+              );
+            }
+          : null,
     );
   }
 }
@@ -56,6 +61,7 @@ class FAB extends StatelessWidget {
     this.openPage,
     this.onTap,
     this.onLongPress,
+    this.onDoubleTap,
     this.tooltip,
     this.color,
     this.colorIcon,
@@ -71,6 +77,7 @@ class FAB extends StatelessWidget {
   final String? tooltip;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onDoubleTap;
   final Color? color;
   final Color? colorIcon;
   final IconData? iconData;
@@ -93,21 +100,6 @@ class FAB extends StatelessWidget {
             ? Theme.of(context).colorScheme.secondary
             : Theme.of(context).colorScheme.onSecondary;
 
-    // Experiment with more vibrant FAB colors
-    // Color? containerColor = color != null
-    //     ? color
-    //     : isOutlined
-    //         ? Theme.of(context).colorScheme.onSecondary
-    //         : blend(Theme.of(context).colorScheme.secondary,
-    //             Theme.of(context).colorScheme.primary,
-    //             amount: 0.35);
-    // Color? iconColor = color != null
-    //     ? colorIcon
-    //     : isOutlined
-    //         ? Theme.of(context).colorScheme.secondary
-    //         : blend(Theme.of(context).colorScheme.onSecondary,
-    //             Theme.of(context).colorScheme.onPrimary,
-    //             amount: 0.35);
     return OpenContainerNavigation(
       closedElevation: 10,
       borderRadius: borderRadius,
@@ -115,47 +107,50 @@ class FAB extends StatelessWidget {
       button: (openContainer) {
         return Tooltip(
           message: tooltip ?? "",
-          child: Tappable(
-            color: containerColor,
-            onTap: () {
-              if (onTap != null)
-                onTap!();
-              else
-                openContainer();
-            },
-            onLongPress: onLongPress,
-            child: OutlinedContainer(
-              enabled: isOutlined,
-              borderRadius: borderRadius,
-              child: Builder(builder: (context) {
-                Widget fabIcon = SizedBox(
-                  height: fabSize,
-                  width: fabSize,
-                  child: Center(
-                    child: Icon(
-                      iconData,
-                      color: iconColor,
-                    ),
-                  ),
-                );
-                if (label != null)
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      fabIcon,
-                      Padding(
-                        padding: const EdgeInsetsDirectional.only(
-                            top: 5, bottom: 5, end: 20),
-                        child: TextFont(
-                          text: label ?? "",
-                          fontSize: labelSize,
-                          textColor: iconColor,
-                        ),
+          child: GestureDetector(
+            onDoubleTap: onDoubleTap,
+            child: Tappable(
+              color: containerColor,
+              onTap: () {
+                if (onTap != null)
+                  onTap!();
+                else
+                  openContainer();
+              },
+              onLongPress: onLongPress,
+              child: OutlinedContainer(
+                enabled: isOutlined,
+                borderRadius: borderRadius,
+                child: Builder(builder: (context) {
+                  Widget fabIcon = SizedBox(
+                    height: fabSize,
+                    width: fabSize,
+                    child: Center(
+                      child: Icon(
+                        iconData,
+                        color: iconColor,
                       ),
-                    ],
+                    ),
                   );
-                return fabIcon;
-              }),
+                  if (label != null)
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        fabIcon,
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(
+                              top: 5, bottom: 5, end: 20),
+                          child: TextFont(
+                            text: label ?? "",
+                            fontSize: labelSize,
+                            textColor: iconColor,
+                          ),
+                        ),
+                      ],
+                    );
+                  return fabIcon;
+                }),
+              ),
             ),
           ),
         );

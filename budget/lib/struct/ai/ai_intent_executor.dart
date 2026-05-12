@@ -105,10 +105,20 @@ class AiIntentExecutor {
     final today = DateTime(now.year, now.month, now.day);
 
     final lowerPeriod = period.toLowerCase().trim();
+    print('=== RESOLVE PERIOD === input: "$period", lower: "$lowerPeriod"');
 
     if (lowerPeriod == 'today') {
       final startOfDay = today;
       final endOfDay = today
+          .add(const Duration(days: 1))
+          .subtract(const Duration(seconds: 1));
+      print('=== RESOLVE PERIOD === returning today: $startOfDay to $endOfDay');
+      return (startOfDay, endOfDay);
+    }
+
+    if (lowerPeriod == 'yesterday') {
+      final startOfDay = today.subtract(const Duration(days: 1));
+      final endOfDay = startOfDay
           .add(const Duration(days: 1))
           .subtract(const Duration(seconds: 1));
       return (startOfDay, endOfDay);
@@ -456,6 +466,8 @@ class AiIntentExecutor {
         }
       }
 
+      print('=== QUERY SPENDING === intent.period: ${intent.period}');
+
       final transactions = await database
           .getTransactionCategoryWithDay(
             startDate,
@@ -467,6 +479,9 @@ class AiIntentExecutor {
             memberTransactionFilters: null,
           )
           .first;
+
+      print(
+          '=== QUERY SPENDING === start: $startDate, end: $endDate, found: ${transactions.length}');
 
       double total = 0;
       int count = 0;
@@ -493,9 +508,23 @@ class AiIntentExecutor {
       }).join(', ');
 
       String periodStr = intent.period ?? 'this month';
-      if (periodStr.toLowerCase() == 'this month') periodStr = 'month';
-      if (periodStr.toLowerCase() == 'this week') periodStr = 'week';
-      if (periodStr.toLowerCase() == 'today') periodStr = 'day';
+      print('=== MESSAGE BEFORE === periodStr before: $periodStr');
+      if (periodStr.toLowerCase() == 'this month' ||
+          periodStr.toLowerCase() == 'month') {
+        periodStr = 'month';
+      } else if (periodStr.toLowerCase() == 'this week' ||
+          periodStr.toLowerCase() == 'week') {
+        periodStr = 'week';
+      } else if (periodStr.toLowerCase() == 'today' ||
+          periodStr.toLowerCase() == 'day') {
+        periodStr = 'today';
+      } else if (periodStr.toLowerCase() == 'yesterday') {
+        periodStr = 'yesterday';
+      } else if (periodStr.toLowerCase() == 'this year' ||
+          periodStr.toLowerCase() == 'year') {
+        periodStr = 'year';
+      }
+      print('=== MESSAGE AFTER === periodStr after: $periodStr');
 
       return AiExecutionResult(
         success: true,
@@ -508,6 +537,7 @@ class AiIntentExecutor {
           'byCategory': byCategory,
           'startDate': startDate,
           'endDate': endDate,
+          'period': periodStr,
         },
       );
     } catch (e) {
@@ -575,35 +605,42 @@ class AiIntentExecutor {
   Future<AiExecutionResult> executeQueryNetWorth(
       QueryNetWorthIntent intent) async {
     try {
-      final wallets = await database.getAllWallets();
+      final allWallets = await database.getAllWallets();
+      if (allWallets.isEmpty) {
+        return AiExecutionResult(
+          success: true,
+          message: 'No wallets found. Add a wallet first.',
+          actionType: 'net_worth_query',
+          createdObject: {'total': 0.0, 'walletCount': 0},
+        );
+      }
+
+      final allWalletsObj = AllWallets(
+        list: allWallets,
+        indexedByPk: {for (final w in allWallets) w.walletPk: w},
+      );
 
       double total = 0;
-      for (final wallet in wallets) {
-        final transactions = await database
-            .getTransactionCategoryWithDay(
-              null,
-              null,
-              walletFks: [wallet.walletPk],
-              budgetTransactionFilters: [
-                BudgetTransactionFilters.defaultBudgetTransactionFilters
-              ],
-              memberTransactionFilters: null,
-            )
-            .first;
-
-        for (final twc in transactions) {
-          total += twc.transaction.amount;
-        }
+      for (final _ in allWallets) {
+        final stream = database.watchTotalWithCountOfWallet(
+          isIncome: null,
+          allWallets: allWalletsObj,
+          followCustomPeriodCycle: false,
+          includeBalanceCorrection: true,
+          onlyIncomeAndExpense: false,
+        );
+        final result = await stream.first;
+        total += result?.total ?? 0;
       }
 
       return AiExecutionResult(
         success: true,
         message:
-            'Your net worth is ₹${total.toStringAsFixed(0)} across ${wallets.length} accounts',
+            'Your net worth is ₹${total.toStringAsFixed(0)} across ${allWallets.length} accounts',
         actionType: 'net_worth_query',
         createdObject: {
           'total': total,
-          'walletCount': wallets.length,
+          'walletCount': allWallets.length,
         },
       );
     } catch (e) {

@@ -74,6 +74,7 @@ class AiResponseFormatter {
           final total = _formatAmount(createdObject['total'] as double);
           final count = createdObject['count'] as int;
           final byCategory = createdObject['byCategory'] as Map<String, double>;
+          final period = createdObject['period'] as String? ?? 'month';
 
           final sortedCategories = byCategory.entries.toList()
             ..sort((a, b) => b.value.compareTo(a.value));
@@ -81,8 +82,16 @@ class AiResponseFormatter {
             return '${e.key} ${_formatAmount(e.value)}';
           }).join(', ');
 
-          String message =
-              'You spent $total this month across $count transactions';
+          String periodPrefix = 'this';
+          String periodWord = period;
+          if (period == 'today' || period == 'yesterday') {
+            periodPrefix = '';
+            periodWord = period;
+          }
+
+          String message = count == 0
+              ? 'No transactions found for $periodWord'
+              : 'You spent $total $periodPrefix $periodWord across $count transactions';
           if (topCategories.isNotEmpty) {
             message += '. Top: $topCategories';
           }

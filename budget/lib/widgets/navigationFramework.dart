@@ -509,23 +509,52 @@ class PageNavigationFrameworkState extends State<PageNavigationFramework> {
           },
         ),
       ),
-      Align(
-        alignment: AlignmentDirectional.bottomEnd,
-        child: Padding(
-          padding: EdgeInsetsDirectional.only(
-            bottom: getHeightNavigationSidebar(context) + 15,
-            end: 15,
-          ),
-          child: AnimateFAB(
-            key: ValueKey(1),
-            fab: AddFAB(
-              tooltip: "add-transaction".tr(),
-              openPage: AddTransactionPage(
-                routesToPopAfterDelete: RoutesToPopAfterDelete.None,
+      SizedBox.expand(
+        child: Stack(
+          alignment: AlignmentDirectional.bottomEnd,
+          children: [
+            Padding(
+              padding: EdgeInsetsDirectional.only(
+                bottom: getHeightNavigationSidebar(context) + 15,
+                end: 15,
+              ),
+              child: AnimateFAB(
+                key: ValueKey(1),
+                fab: AddFAB(
+                  tooltip: "add-transaction".tr(),
+                  openPage: AddTransactionPage(
+                    routesToPopAfterDelete: RoutesToPopAfterDelete.None,
+                  ),
+                  onDoubleTap: appStateSettings["aiAccessButton"] == "doubleTap"
+                      ? () => openAiAssistantSheet(context)
+                      : null,
+                  enableLongPress:
+                      appStateSettings["aiAccessButton"] != "doubleTap",
+                ),
+                condition: [0, 1, 2, 14].contains(currentPage),
               ),
             ),
-            condition: [0, 1, 2, 14].contains(currentPage),
-          ),
+            if (appStateSettings["aiAccessButton"] == "fabShortcut")
+              Padding(
+                padding: EdgeInsetsDirectional.only(
+                  bottom: getHeightNavigationSidebar(context) + 80,
+                  end: 15,
+                ),
+                child: AnimateFAB(
+                  key: ValueKey(2),
+                  fab: FAB(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    colorIcon: Theme.of(context).colorScheme.onPrimaryContainer,
+                    tooltip: "AI Assistant",
+                    iconData: Icons.auto_awesome,
+                    fabSize: 48,
+                    borderRadius: 15,
+                    onTap: () => openAiAssistantSheet(context),
+                  ),
+                  condition: [0, 1, 2, 14].contains(currentPage),
+                ),
+              ),
+          ],
         ),
       ),
     ]);

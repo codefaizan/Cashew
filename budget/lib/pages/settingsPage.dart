@@ -1,8 +1,10 @@
 import 'package:budget/colors.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:budget/database/tables.dart' hide AppSettings;
 import 'package:budget/pages/aboutPage.dart';
-import 'package:budget/pages/addTransactionPage.dart';
 import 'package:budget/pages/billSplitter.dart';
+import 'package:budget/pages/addTransactionPage.dart';
+import 'package:budget/pages/importSQL.dart';
 import 'package:budget/pages/budgetsListPage.dart';
 import 'package:budget/pages/creditDebtTransactionsPage.dart';
 import 'package:budget/pages/editHomePage.dart';
@@ -573,6 +575,15 @@ class SettingsPageContent extends StatelessWidget {
         //   icon: appStateSettings["outlinedIcons"] ? Icons.auto_fix_high_outlined : Icons.auto_fix_high_rounded,
         // ),
 
+        if (kDebugMode)
+          SettingsContainerOpenPage(
+            title: "Import SQL",
+            openPage: ImportSQL(),
+            icon: appStateSettings["outlinedIcons"]
+                ? Icons.code_outlined
+                : Icons.code,
+          ),
+
         AiProviderSettings(),
 
         appStateSettings["emailScanning"]
@@ -700,6 +711,7 @@ class MoreOptionsPagePreferences extends StatelessWidget {
         SettingsHeader(title: "style".tr()),
         HeaderHeightSetting(),
         OutlinedIconsSetting(),
+        AIAccessButtonSetting(),
         FontPickerSetting(),
         AppAnimationSetting(),
         CountingNumberAnimationSetting(),
@@ -974,6 +986,35 @@ class OutlinedIconsSetting extends StatelessWidget {
       icon: appStateSettings["outlinedIcons"]
           ? Icons.star_outline
           : Icons.star_rounded,
+    );
+  }
+}
+
+class AIAccessButtonSetting extends StatelessWidget {
+  const AIAccessButtonSetting({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsContainerDropdown(
+      items: ["fabShortcut", "doubleTap"],
+      onChanged: (value) async {
+        await updateSettings(
+          "aiAccessButton",
+          value,
+          updateGlobalState: false,
+        );
+        appStateKey.currentState?.refreshAppState();
+      },
+      getLabel: (value) {
+        if (value == "fabShortcut") return "fab-shortcut".tr();
+        if (value == "doubleTap") return "double-tap".tr();
+        return value;
+      },
+      initial: appStateSettings["aiAccessButton"] ?? "fabShortcut",
+      title: "ai-access-button".tr(),
+      icon: appStateSettings["outlinedIcons"]
+          ? Icons.auto_awesome_outlined
+          : Icons.auto_awesome_rounded,
     );
   }
 }
@@ -2046,6 +2087,25 @@ class _AiProviderSettingsState extends State<AiProviderSettings> {
                       onSwitched: (value) async {
                         await updateSettings(
                           "aiSendContext",
+                          value,
+                          updateGlobalState: false,
+                        );
+                        setModalState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    SettingsContainerSwitch(
+                      title: "AI Crafted Messages",
+                      description:
+                          "Use AI to generate natural response messages",
+                      icon: appStateSettings["outlinedIcons"]
+                          ? Icons.auto_fix_high_outlined
+                          : Icons.auto_fix_high_rounded,
+                      initialValue:
+                          appStateSettings["aiUseLlmForMessages"] == true,
+                      onSwitched: (value) async {
+                        await updateSettings(
+                          "aiUseLlmForMessages",
                           value,
                           updateGlobalState: false,
                         );
