@@ -84,19 +84,27 @@ class ChatMessage {
   final String content;
   final TransactionDraft? draft;
   final DraftStatus? draftStatus;
+  final String? imageBase64;
+  final bool isOcrMessage;
 
   const ChatMessage({
     required this.role,
     required this.content,
     this.draft,
     this.draftStatus,
+    this.imageBase64,
+    this.isOcrMessage = false,
   });
+
+  bool get hasImage => imageBase64 != null && imageBase64!.isNotEmpty;
 
   Map<String, dynamic> toJson() => {
         'role': role,
         'content': content,
         'draft': draft?.toJson(),
         'draftStatus': draftStatus?.name,
+        'imageBase64': imageBase64,
+        'isOcrMessage': isOcrMessage,
       };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
@@ -109,6 +117,8 @@ class ChatMessage {
       draftStatus: json['draftStatus'] != null
           ? DraftStatus.values.byName(json['draftStatus'] as String)
           : null,
+      imageBase64: json['imageBase64'] as String?,
+      isOcrMessage: json['isOcrMessage'] as bool? ?? false,
     );
   }
 }

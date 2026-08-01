@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:budget/pages/ai_assist/ai_assist_models.dart';
 
 abstract class OpenRouterClient {
+  Future<String> ocrImage(String imageBase64);
+
   Future<AiAssistResponse> sendMessage({
     required String userMessage,
     required List<ChatMessage> history,
@@ -11,11 +13,14 @@ abstract class OpenRouterClient {
     required String defaultWalletName,
     required String currentDate,
     TransactionDraft? currentDraft,
+    String? ocrText,
   });
 }
 
 class HttpOpenRouterClient implements OpenRouterClient {
   static const _baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
+  static const _ocrPrimaryModel = 'nvidia/nemotron-nano-12b-v2-vl:free';
+  static const _ocrFallbackModel = 'google/gemma-4-31b-it:free';
   static const _primaryModel = 'openai/gpt-oss-20b:free';
   static const _fallbackModel = 'google/gemma-4-26b-a4b-it:free';
 
@@ -28,6 +33,78 @@ class HttpOpenRouterClient implements OpenRouterClient {
   }) : _httpClient = httpClient ?? http.Client();
 
   @override
+  Future<String> ocrImage(String imageBase64) async {
+    try {
+      return await _ocrWithModel(_ocrPrimaryModel, imageBase64);
+    } catch (e) {
+      if (e is OpenRouterAuthException) rethrow;
+      try {
+        return await _ocrWithModel(_ocrFallbackModel, imageBase64);
+      } catch (_) {
+        rethrow;
+      }
+    }
+  }
+
+  Future<String> _ocrWithModel(String model, String imageBase64) async {
+    final response = await _httpClient.post(
+      Uri.parse(_baseUrl),
+      headers: {
+        'Authorization': 'Bearer $apiKey',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'model': model,
+        'messages': [
+          {
+            'role': 'user',
+            'content': [
+              {
+                'type': 'text',
+                'text':
+                    'Read all text from this image. Return only the extracted text, no commentary.',
+              },
+              {
+                'type': 'image_url',
+                'image_url': {
+                  'url': 'data:image/jpeg;base64,$imageBase64',
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      throw OpenRouterAuthException('Invalid API key');
+    }
+
+    if (response.statusCode == 429) {
+      throw OpenRouterRateLimitException('Rate limited');
+    }
+
+    if (response.statusCode != 200) {
+      throw OpenRouterException(
+          'OCR failed: ${response.statusCode}: ${response.body}');
+    }
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final choices = body['choices'] as List<dynamic>?;
+
+    if (choices == null || choices.isEmpty) {
+      throw OpenRouterException('Empty response from OCR model');
+    }
+
+    final content = choices[0]['message']['content'] as String?;
+    if (content == null || content.trim().isEmpty) {
+      throw OpenRouterException('Empty content from OCR model');
+    }
+
+    return content.trim();
+  }
+
+  @override
   Future<AiAssistResponse> sendMessage({
     required String userMessage,
     required List<ChatMessage> history,
@@ -36,11 +113,16 @@ class HttpOpenRouterClient implements OpenRouterClient {
     required String defaultWalletName,
     required String currentDate,
     TransactionDraft? currentDraft,
+    String? ocrText,
   }) async {
+    final effectiveMessage = ocrText != null && ocrText.isNotEmpty
+        ? 'Receipt contents:\n$ocrText\n\nUser message: $userMessage'
+        : userMessage;
+
     try {
       return await _sendToModel(
         _primaryModel,
-        userMessage,
+        effectiveMessage,
         history,
         categoryNames,
         walletNamesWithCurrencies,
@@ -53,7 +135,7 @@ class HttpOpenRouterClient implements OpenRouterClient {
       try {
         return await _sendToModel(
           _fallbackModel,
-          userMessage,
+          effectiveMessage,
           history,
           categoryNames,
           walletNamesWithCurrencies,

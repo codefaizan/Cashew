@@ -111,6 +111,72 @@ void main() {
       expect(msg.draft, null);
       expect(msg.draftStatus, null);
     });
+
+    test('with image round-trip preserves imageBase64', () {
+      final msg = ChatMessage(
+        role: 'user',
+        content: 'groceries',
+        imageBase64: 'aGVsbG8=',
+      );
+
+      final json = msg.toJson();
+      expect(json['imageBase64'], 'aGVsbG8=');
+      expect(json['isOcrMessage'], false);
+
+      final restored = ChatMessage.fromJson(json);
+      expect(restored.imageBase64, 'aGVsbG8=');
+      expect(restored.hasImage, true);
+      expect(restored.isOcrMessage, false);
+    });
+
+    test('without image hasImage is false', () {
+      final msg = ChatMessage(role: 'user', content: 'hello');
+      expect(msg.hasImage, false);
+      expect(msg.imageBase64, null);
+
+      final json = msg.toJson();
+      expect(json['imageBase64'], null);
+
+      final restored = ChatMessage.fromJson(json);
+      expect(restored.hasImage, false);
+      expect(restored.imageBase64, null);
+    });
+
+    test('with empty imageBase64 hasImage returns false', () {
+      final msg = ChatMessage(
+        role: 'user',
+        content: 'hello',
+        imageBase64: '',
+      );
+      expect(msg.hasImage, false);
+    });
+
+    test('with isOcrMessage serialization', () {
+      final msg = ChatMessage(
+        role: 'assistant',
+        content: 'Walmart Supercenter\nMilk \$3.49\nTotal \$5.78',
+        isOcrMessage: true,
+      );
+
+      final json = msg.toJson();
+      expect(json['isOcrMessage'], true);
+      expect(json['role'], 'assistant');
+      expect(json['content'], 'Walmart Supercenter\nMilk \$3.49\nTotal \$5.78');
+
+      final restored = ChatMessage.fromJson(json);
+      expect(restored.isOcrMessage, true);
+      expect(restored.role, 'assistant');
+      expect(restored.draft, null);
+    });
+
+    test('fromJson with missing isOcrMessage defaults to false', () {
+      final json = {
+        'role': 'assistant',
+        'content': 'hi',
+      };
+      final msg = ChatMessage.fromJson(json);
+      expect(msg.isOcrMessage, false);
+    });
   });
 
   group('AiAssistResponse', () {
@@ -226,9 +292,204 @@ void main() {
       expect(updated.messages.length, 2);
       expect(original.messages.length, 1);
     });
+
+    test('session round-trips with imageBase64 in messages', () {
+      final session = AiAssistSession(
+        messages: [
+          ChatMessage(
+            role: 'user',
+            content: 'groceries',
+            imageBase64: 'dGVzdA==',
+          ),
+          ChatMessage(
+            role: 'assistant',
+            content: 'Walmart receipt text',
+            isOcrMessage: true,
+          ),
+          ChatMessage(
+            role: 'assistant',
+            content: 'Got it',
+            draft: TransactionDraft(amount: 100.0, title: 'Test'),
+            draftStatus: DraftStatus.pending,
+          ),
+        ],
+      );
+
+      final json = session.toJson();
+      final restored = AiAssistSession.fromJson(json);
+
+      expect(restored.messages.length, 3);
+      expect(restored.messages[0].imageBase64, 'dGVzdA==');
+      expect(restored.messages[0].hasImage, true);
+      expect(restored.messages[1].isOcrMessage, true);
+      expect(restored.messages[2].draft, isNotNull);
+    });
   });
 
-  group('HttpOpenRouterClient', () {
+  group('HttpOpenRouterClient OCR', () {
+    test('returns raw text from primary OCR model', () async {
+      final mockClient = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final model = body['model'] as String;
+        expect(model, 'nvidia/nemotron-nano-12b-v2-vl:free');
+
+        // Verify the request uses vision format (content array)
+        final messages = body['messages'] as List<dynamic>;
+        final userContent = messages[0]['content'];
+        expect(userContent, isA<List>());
+        final contentParts = userContent as List<dynamic>;
+        expect(contentParts.length, 2);
+        expect(contentParts[0]['type'], 'text');
+        expect(contentParts[1]['type'], 'image_url');
+        expect(
+          contentParts[1]['image_url']['url'],
+          'data:image/jpeg;base64,dGVzdGltYWdl',
+        );
+
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {
+                  'content': 'Walmart\nMilk \$3.49\nTotal \$5.78',
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      });
+
+      final client = HttpOpenRouterClient(
+        apiKey: 'test-key',
+        httpClient: mockClient,
+      );
+
+      final result = await client.ocrImage('dGVzdGltYWdl');
+      expect(result, 'Walmart\nMilk \$3.49\nTotal \$5.78');
+    });
+
+    test('falls back to secondary OCR model on primary failure', () async {
+      int callCount = 0;
+      final mockClient = MockClient((request) async {
+        callCount++;
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final model = body['model'] as String;
+
+        if (model == 'nvidia/nemotron-nano-12b-v2-vl:free') {
+          return http.Response('Server error', 500);
+        }
+        // Fallback model
+        expect(model, 'google/gemma-4-31b-it:free');
+
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {'content': 'Fallback OCR text'},
+              },
+            ],
+          }),
+          200,
+        );
+      });
+
+      final client = HttpOpenRouterClient(
+        apiKey: 'test-key',
+        httpClient: mockClient,
+      );
+
+      final result = await client.ocrImage('dGVzdGltYWdl');
+      expect(callCount, 2);
+      expect(result, 'Fallback OCR text');
+    });
+
+    test('throws when both OCR models fail', () async {
+      final mockClient = MockClient((_) async => http.Response('Service down', 503));
+
+      final client = HttpOpenRouterClient(
+        apiKey: 'test-key',
+        httpClient: mockClient,
+      );
+
+      expect(
+        () => client.ocrImage('dGVzdGltYWdl'),
+        throwsA(isA<OpenRouterException>()),
+      );
+    });
+
+    test('auth error on OCR skips fallback', () async {
+      bool fallbackCalled = false;
+      final mockClient = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final model = body['model'] as String;
+        if (model == 'google/gemma-4-31b-it:free') {
+          fallbackCalled = true;
+        }
+        return http.Response('Unauthorized', 401);
+      });
+
+      final client = HttpOpenRouterClient(
+        apiKey: 'bad-key',
+        httpClient: mockClient,
+      );
+
+      try {
+        await client.ocrImage('dGVzdGltYWdl');
+        fail('Expected OpenRouterAuthException');
+      } on OpenRouterAuthException {
+        // Expected
+      }
+      // Auth error should skip fallback — fallback must not have been called
+      expect(fallbackCalled, false);
+    });
+
+    test('throws on empty OCR response content', () async {
+      final mockClient = MockClient((_) async {
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {'content': '   '},
+              },
+            ],
+          }),
+          200,
+        );
+      });
+
+      final client = HttpOpenRouterClient(
+        apiKey: 'test-key',
+        httpClient: mockClient,
+      );
+
+      expect(
+        () => client.ocrImage('dGVzdGltYWdl'),
+        throwsA(isA<OpenRouterException>()),
+      );
+    });
+
+    test('throws on empty OCR choices', () async {
+      final mockClient = MockClient((_) async {
+        return http.Response(
+          jsonEncode({'choices': <dynamic>[]}),
+          200,
+        );
+      });
+
+      final client = HttpOpenRouterClient(
+        apiKey: 'test-key',
+        httpClient: mockClient,
+      );
+
+      expect(
+        () => client.ocrImage('dGVzdGltYWdl'),
+        throwsA(isA<OpenRouterException>()),
+      );
+    });
+  });
+
+  group('HttpOpenRouterClient sendMessage', () {
     test('returns parsed response on success', () async {
       final mockClient = MockClient((request) async {
         expect(request.headers['Authorization'], 'Bearer test-key');
@@ -279,6 +540,166 @@ void main() {
       expect(response.draft, isNotNull);
       expect(response.draft!.amount, 450.0);
       expect(response.draft!.title, 'Coffee');
+    });
+
+    test('with ocrText prepends receipt contents to user message', () async {
+      String? capturedUserContent;
+      final mockClient = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final messages = body['messages'] as List<dynamic>;
+        // The last message is the user's (combined) message
+        capturedUserContent = messages.last['content'] as String;
+
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {
+                  'content': jsonEncode({
+                    'assistantMessage': 'Parsed receipt',
+                    'draft': {
+                      'income': false,
+                      'amount': 5.78,
+                      'title': 'Walmart',
+                      'categoryName': 'Food',
+                      'createNewCategory': false,
+                      'newCategoryName': null,
+                      'walletName': 'Cash',
+                      'date': '2026-07-31',
+                      'note': null,
+                    },
+                  }),
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      });
+
+      final client = HttpOpenRouterClient(
+        apiKey: 'test-key',
+        httpClient: mockClient,
+      );
+
+      await client.sendMessage(
+        userMessage: 'split with John',
+        ocrText: 'Walmart\nMilk \$3.49\nTotal \$5.78',
+        history: [],
+        categoryNames: ['Food'],
+        walletNamesWithCurrencies: {'Cash': 'USD'},
+        defaultWalletName: 'Cash',
+        currentDate: '2026-07-31',
+      );
+
+      expect(
+        capturedUserContent,
+        'Receipt contents:\nWalmart\nMilk \$3.49\nTotal \$5.78\n\nUser message: split with John',
+      );
+    });
+
+    test('without ocrText works same as V1', () async {
+      String? capturedUserContent;
+      final mockClient = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final messages = body['messages'] as List<dynamic>;
+        capturedUserContent = messages.last['content'] as String;
+
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {
+                  'content': jsonEncode({
+                    'assistantMessage': 'Got it',
+                    'draft': {
+                      'income': false,
+                      'amount': 50.0,
+                      'title': 'Lunch',
+                      'categoryName': 'Food',
+                      'createNewCategory': false,
+                      'newCategoryName': null,
+                      'walletName': 'Cash',
+                      'date': '2026-07-31',
+                      'note': null,
+                    },
+                  }),
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      });
+
+      final client = HttpOpenRouterClient(
+        apiKey: 'test-key',
+        httpClient: mockClient,
+      );
+
+      await client.sendMessage(
+        userMessage: 'lunch 50',
+        history: [],
+        categoryNames: ['Food'],
+        walletNamesWithCurrencies: {'Cash': 'USD'},
+        defaultWalletName: 'Cash',
+        currentDate: '2026-07-31',
+      );
+
+      expect(capturedUserContent, 'lunch 50');
+      expect(capturedUserContent, isNot(contains('Receipt contents')));
+    });
+
+    test('with null ocrText works same as V1', () async {
+      String? capturedUserContent;
+      final mockClient = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final messages = body['messages'] as List<dynamic>;
+        capturedUserContent = messages.last['content'] as String;
+
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {
+                  'content': jsonEncode({
+                    'assistantMessage': 'Done',
+                    'draft': {
+                      'income': false,
+                      'amount': 100.0,
+                      'title': 'Test',
+                      'categoryName': 'Food',
+                      'createNewCategory': false,
+                      'newCategoryName': null,
+                      'walletName': 'Cash',
+                      'date': '2026-07-31',
+                      'note': null,
+                    },
+                  }),
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      });
+
+      final client = HttpOpenRouterClient(
+        apiKey: 'test-key',
+        httpClient: mockClient,
+      );
+
+      await client.sendMessage(
+        userMessage: 'test 100',
+        ocrText: null,
+        history: [],
+        categoryNames: ['Food'],
+        walletNamesWithCurrencies: {'Cash': 'USD'},
+        defaultWalletName: 'Cash',
+        currentDate: '2026-07-31',
+      );
+
+      expect(capturedUserContent, 'test 100');
     });
 
     test('throws auth exception on 401', () async {

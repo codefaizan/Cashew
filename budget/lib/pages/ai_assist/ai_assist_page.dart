@@ -1,5 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:budget/database/tables.dart';
 import 'package:budget/pages/ai_assist/ai_assist_confirm.dart';
 import 'package:budget/pages/ai_assist/ai_assist_models.dart';
@@ -10,6 +14,12 @@ import 'package:budget/struct/settings.dart';
 import 'package:budget/widgets/openBottomSheet.dart';
 import 'package:budget/widgets/textWidgets.dart';
 import 'package:intl/intl.dart';
+
+enum LoadingStage {
+  none,
+  readingImage,
+  creatingDraft,
+}
 
 class AiAssistChat extends StatefulWidget {
   final ScrollController scrollController;
@@ -22,11 +32,13 @@ class AiAssistChat extends StatefulWidget {
 
 class _AiAssistChatState extends State<AiAssistChat> {
   AiAssistSession _session = const AiAssistSession();
-  bool _isLoading = false;
+  LoadingStage _loadingStage = LoadingStage.none;
   String? _error;
   String _apiKey = '';
   final TextEditingController _textController = TextEditingController();
   final FocusNode _inputFocusNode = FocusNode();
+  String? _attachedImageBase64;
+  final ImagePicker _imagePicker = ImagePicker();
 
   List<TransactionCategory> _categories = [];
   Map<String, TransactionWallet> _wallets = {};
@@ -81,22 +93,133 @@ class _AiAssistChatState extends State<AiAssistChat> {
 
   String get _currentDate => DateFormat('yyyy-MM-dd').format(DateTime.now());
 
+  bool get _isLoading => _loadingStage != LoadingStage.none;
+
+  String? get _loadingLabel {
+    switch (_loadingStage) {
+      case LoadingStage.readingImage:
+        return 'Reading your receipt…';
+      case LoadingStage.creatingDraft:
+        return 'Creating transaction…';
+      case LoadingStage.none:
+        return null;
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? picked = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 80,
+        maxWidth: 2048,
+        maxHeight: 2048,
+      );
+      if (picked == null) return;
+
+      final bytes = await picked.readAsBytes();
+      final imageBase64 = base64Encode(bytes);
+
+      // Create thumbnail for display
+      final thumbnailBase64 = await _createThumbnailBase64(bytes);
+
+      setState(() {
+        _attachedImageBase64 = imageBase64;
+        _pendingThumbnailBase64 = thumbnailBase64;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'This image couldn\'t be used. Try a different photo.';
+      });
+    }
+  }
+
+  String? _pendingThumbnailBase64;
+
+  Future<String> _createThumbnailBase64(List<int> bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(
+        Uint8List.fromList(bytes),
+        targetWidth: 160,
+        targetHeight: 160,
+      );
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+      final byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      final pngBytes = byteData!.buffer.asUint8List();
+      return base64Encode(pngBytes);
+    } catch (_) {
+      // If thumbnail creation fails, return empty
+      return '';
+    }
+  }
+
+  void _removeAttachedImage() {
+    setState(() {
+      _attachedImageBase64 = null;
+      _pendingThumbnailBase64 = null;
+    });
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.camera_alt_rounded),
+                title: TextFont(text: 'Camera', fontSize: 16),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.photo_library_rounded),
+                title: TextFont(text: 'Gallery', fontSize: 16),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _sendMessage() async {
     final text = _textController.text.trim();
-    if (text.isEmpty || _isLoading) return;
+    final hasImage = _attachedImageBase64 != null;
+    if (text.isEmpty && !hasImage || _isLoading) return;
 
     if (_apiKey.isEmpty) {
-      setState(() => _error = 'Please add your OpenRouter API key in Settings');
+      setState(
+          () => _error = 'Please add your OpenRouter API key in Settings');
       return;
     }
+
+    final imageBase64 = _attachedImageBase64;
+    final thumbnailBase64 = _pendingThumbnailBase64;
 
     _textController.clear();
     setState(() {
       _error = null;
-      _isLoading = true;
+      _loadingStage = hasImage ? LoadingStage.readingImage : LoadingStage.creatingDraft;
+      _attachedImageBase64 = null;
+      _pendingThumbnailBase64 = null;
     });
 
-    final userMessage = ChatMessage(role: 'user', content: text);
+    final userMessage = ChatMessage(
+      role: 'user',
+      content: text,
+      imageBase64: thumbnailBase64,
+    );
     _session = _session.copyWith(
       messages: [..._session.messages, userMessage],
     );
@@ -104,6 +227,34 @@ class _AiAssistChatState extends State<AiAssistChat> {
 
     try {
       final client = HttpOpenRouterClient(apiKey: _apiKey);
+      String? ocrText;
+
+      if (hasImage && imageBase64 != null) {
+        // Step 1: OCR
+        ocrText = await client.ocrImage(imageBase64);
+
+        if (ocrText.trim().isEmpty) {
+          setState(() {
+            _error = 'No text found in the image. Try a clearer photo.';
+            _loadingStage = LoadingStage.none;
+          });
+          return;
+        }
+
+        // Insert OCR message
+        final ocrMessage = ChatMessage(
+          role: 'assistant',
+          content: ocrText,
+          isOcrMessage: true,
+        );
+        _session = _session.copyWith(
+          messages: [..._session.messages, ocrMessage],
+        );
+        await _session.save();
+        setState(() => _loadingStage = LoadingStage.creatingDraft);
+      }
+
+      // Step 2: Parse
       final response = await client.sendMessage(
         userMessage: text,
         history: _session.messages,
@@ -112,6 +263,7 @@ class _AiAssistChatState extends State<AiAssistChat> {
         defaultWalletName: _defaultWalletName,
         currentDate: _currentDate,
         currentDraft: _session.currentDraft,
+        ocrText: ocrText,
       );
 
       final assistantMessage = ChatMessage(
@@ -127,22 +279,26 @@ class _AiAssistChatState extends State<AiAssistChat> {
       );
       await _session.save();
 
-      setState(() => _isLoading = false);
+      setState(() => _loadingStage = LoadingStage.none);
     } on OpenRouterAuthException {
       setState(() {
         _error = 'Invalid API key. Check your OpenRouter key in Settings.';
-        _isLoading = false;
+        _loadingStage = LoadingStage.none;
       });
     } on OpenRouterRateLimitException {
       setState(() {
         _error =
             'Rate limited by OpenRouter. Please wait a moment and try again.';
-        _isLoading = false;
+        _loadingStage = LoadingStage.none;
       });
     } catch (e) {
       setState(() {
-        _error = 'Error: ${e.toString()}';
-        _isLoading = false;
+        if (_loadingStage == LoadingStage.readingImage) {
+          _error = 'Couldn\'t read your receipt. Try again or type the details.';
+        } else {
+          _error = 'Error: ${e.toString()}';
+        }
+        _loadingStage = LoadingStage.none;
       });
     }
 
@@ -150,7 +306,7 @@ class _AiAssistChatState extends State<AiAssistChat> {
   }
 
   Future<void> _confirmDraft(TransactionDraft draft) async {
-    setState(() => _isLoading = true);
+    setState(() => _loadingStage = LoadingStage.creatingDraft);
     try {
       final handler = AiAssistConfirmHandler();
       await handler.confirm(draft);
@@ -162,6 +318,8 @@ class _AiAssistChatState extends State<AiAssistChat> {
             content: m.content,
             draft: m.draft,
             draftStatus: DraftStatus.confirmed,
+            imageBase64: m.imageBase64,
+            isOcrMessage: m.isOcrMessage,
           );
         }
         return m;
@@ -175,11 +333,11 @@ class _AiAssistChatState extends State<AiAssistChat> {
 
       // Reload to get new category if created
       await _loadData();
-      setState(() => _isLoading = false);
+      setState(() => _loadingStage = LoadingStage.none);
     } catch (e) {
       setState(() {
         _error = 'Failed to create transaction: ${e.toString()}';
-        _isLoading = false;
+        _loadingStage = LoadingStage.none;
       });
     }
   }
@@ -195,6 +353,8 @@ class _AiAssistChatState extends State<AiAssistChat> {
           content: m.content,
           draft: m.draft,
           draftStatus: DraftStatus.discarded,
+          imageBase64: m.imageBase64,
+          isOcrMessage: m.isOcrMessage,
         ));
         found = true;
       } else {
@@ -317,6 +477,12 @@ class _AiAssistChatState extends State<AiAssistChat> {
     final isPending = message.draftStatus == DraftStatus.pending;
     final isConfirmed = message.draftStatus == DraftStatus.confirmed;
     final isDiscarded = message.draftStatus == DraftStatus.discarded;
+    final isOcr = message.isOcrMessage;
+    final hasImage = message.hasImage;
+
+    if (isOcr) {
+      return _buildOcrBubble(message);
+    }
 
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 4),
@@ -344,9 +510,29 @@ class _AiAssistChatState extends State<AiAssistChat> {
                             .withOpacity(0.5),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: TextFont(
-                    text: message.content,
-                    fontSize: 14,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (hasImage)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.memory(
+                              _decodeBase64(message.imageBase64!),
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      if (message.content.isNotEmpty)
+                        TextFont(
+                          text: message.content,
+                          fontSize: 14,
+                          maxLines: null,
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -356,6 +542,57 @@ class _AiAssistChatState extends State<AiAssistChat> {
           if (hasDraft && isConfirmed) _buildConfirmedCard(),
           if (hasDraft && isDiscarded) _buildDiscardedCard(),
         ],
+      ),
+    );
+  }
+
+  Uint8List _decodeBase64(String base64) {
+    return base64Decode(base64);
+  }
+
+  Widget _buildOcrBubble(ChatMessage message) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Container(
+        constraints: BoxConstraints(maxWidth: 320),
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context)
+              .colorScheme
+              .tertiaryContainer
+              .withOpacity(0.4),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.receipt_long_outlined,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                SizedBox(width: 6),
+                TextFont(
+                  text: "Here's what I read from your receipt:",
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  textColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            TextFont(
+              text: message.content,
+              fontSize: 13,
+              maxLines: null,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -551,6 +788,7 @@ class _AiAssistChatState extends State<AiAssistChat> {
   }
 
   Widget _buildLoadingBubble() {
+    final label = _loadingLabel;
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -566,16 +804,22 @@ class _AiAssistChatState extends State<AiAssistChat> {
                   .withOpacity(0.5),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: SizedBox(
-              width: 40,
-              height: 20,
-              child: Center(
-                child: SizedBox(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-              ),
+                if (label != null) ...[
+                  SizedBox(width: 8),
+                  TextFont(
+                    text: label,
+                    fontSize: 13,
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -618,43 +862,103 @@ class _AiAssistChatState extends State<AiAssistChat> {
           ),
         ),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: TextField(
-              controller: _textController,
-              focusNode: _inputFocusNode,
-              enabled: !_isLoading,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendMessage(),
-              decoration: InputDecoration(
-                hintText:
-                    _apiKey.isEmpty ? 'Add API key in Settings first...' : 'Describe a transaction...',
-                hintStyle: TextStyle(fontSize: 14),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                filled: true,
-                fillColor: Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest
-                    .withOpacity(0.3),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
-                ),
-                isDense: true,
+          if (_attachedImageBase64 != null && _pendingThumbnailBase64 != null)
+            Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(
+                          base64Decode(_pendingThumbnailBase64!),
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _removeAttachedImage,
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.only(
+                                topRight: Radius.circular(8),
+                                bottomLeft: Radius.circular(6),
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              style: TextStyle(fontSize: 14),
-              maxLines: null,
             ),
-          ),
-          SizedBox(width: 6),
-          IconButton(
-            icon: Icon(Icons.send_rounded, size: 22),
-            onPressed: _isLoading ? null : _sendMessage,
-            color: _isLoading
-                ? Theme.of(context).disabledColor
-                : Theme.of(context).colorScheme.primary,
+          Row(
+            children: [
+              IconButton(
+                icon: Icon(Icons.attach_file_rounded, size: 22),
+                onPressed: _isLoading ? null : _showImageSourceSheet,
+                color: _isLoading
+                    ? Theme.of(context).disabledColor
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints(minWidth: 36, minHeight: 36),
+              ),
+              SizedBox(width: 4),
+              Expanded(
+                child: TextField(
+                  controller: _textController,
+                  focusNode: _inputFocusNode,
+                  enabled: !_isLoading,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _sendMessage(),
+                  decoration: InputDecoration(
+                    hintText: _apiKey.isEmpty
+                        ? 'Add API key in Settings first...'
+                        : 'Describe a transaction...',
+                    hintStyle: TextStyle(fontSize: 14),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    filled: true,
+                    fillColor: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withOpacity(0.3),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    isDense: true,
+                  ),
+                  style: TextStyle(fontSize: 14),
+                  maxLines: null,
+                ),
+              ),
+              SizedBox(width: 6),
+              IconButton(
+                icon: Icon(Icons.send_rounded, size: 22),
+                onPressed: _isLoading ? null : _sendMessage,
+                color: _isLoading
+                    ? Theme.of(context).disabledColor
+                    : Theme.of(context).colorScheme.primary,
+              ),
+            ],
           ),
         ],
       ),
