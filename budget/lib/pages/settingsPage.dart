@@ -635,6 +635,18 @@ class SettingsPageContent extends StatelessWidget {
             _openApiKeySheet(context);
           },
         ),
+        SettingsContainerSwitch(
+          title: "AI Assist quick-access button",
+          description:
+              "Show a floating AI Assist button above the add button on the main pages",
+          onSwitched: (value) {
+            updateSettings("showAiAssistFab", value, updateGlobalState: true);
+          },
+          initialValue: appStateSettings["showAiAssistFab"],
+          icon: appStateSettings["outlinedIcons"]
+              ? Icons.auto_awesome_outlined
+              : Icons.auto_awesome_rounded,
+        ),
         // SettingsContainerOpenPage(
         //   openPage: AutoTransactionsPage(),
         //   title: "Auto Transactions",

@@ -516,15 +516,39 @@ class PageNavigationFrameworkState extends State<PageNavigationFramework> {
             bottom: getHeightNavigationSidebar(context) + 15,
             end: 15,
           ),
-          child: AnimateFAB(
-            key: ValueKey(1),
-            fab: AddFAB(
-              tooltip: "add-transaction".tr(),
-              openPage: AddTransactionPage(
-                routesToPopAfterDelete: RoutesToPopAfterDelete.None,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimateFAB(
+                key: ValueKey(2),
+                fab: FAB(
+                  tooltip: "AI Assist",
+                  iconData: appStateSettings["outlinedIcons"]
+                      ? Icons.auto_awesome_outlined
+                      : Icons.auto_awesome_rounded,
+                  fabSize: getIsFullScreen(context) == false ? 48 : 56,
+                  borderRadius: getIsFullScreen(context) == false ? 16 : 18,
+                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  colorIcon: Theme.of(context).colorScheme.onSecondaryContainer,
+                  onTap: () {
+                    openAiAssistSheet(context);
+                  },
+                ),
+                condition: [0, 1, 2, 14].contains(currentPage) &&
+                    appStateSettings["showAiAssistFab"] == true,
               ),
-            ),
-            condition: [0, 1, 2, 14].contains(currentPage),
+              SizedBox(height: 12),
+              AnimateFAB(
+                key: ValueKey(1),
+                fab: AddFAB(
+                  tooltip: "add-transaction".tr(),
+                  openPage: AddTransactionPage(
+                    routesToPopAfterDelete: RoutesToPopAfterDelete.None,
+                  ),
+                ),
+                condition: [0, 1, 2, 14].contains(currentPage),
+              ),
+            ],
           ),
         ),
       ),

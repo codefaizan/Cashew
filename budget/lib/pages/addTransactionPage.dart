@@ -5,6 +5,7 @@ import 'package:budget/pages/addBudgetPage.dart';
 import 'package:budget/pages/addCategoryPage.dart';
 import 'package:budget/pages/addObjectivePage.dart';
 import 'package:budget/pages/addWalletPage.dart';
+import 'package:budget/pages/ai_assist/open_ai_assist_sheet.dart';
 import 'package:budget/pages/editAssociatedTitlesPage.dart';
 import 'package:budget/pages/editWalletsPage.dart';
 import 'package:budget/pages/premiumPage.dart';
@@ -2069,6 +2070,18 @@ class _AddTransactionPageState extends State<AddTransactionPage>
           }
         },
         actions: [
+          widget.transaction == null
+              ? IconButton(
+                  padding: EdgeInsetsDirectional.all(15),
+                  tooltip: "AI Assist",
+                  onPressed: () {
+                    openAiAssistSheet(context);
+                  },
+                  icon: Icon(appStateSettings["outlinedIcons"]
+                      ? Icons.auto_awesome_outlined
+                      : Icons.auto_awesome_rounded),
+                )
+              : SizedBox.shrink(),
           widget.transaction != null
               ? IconButton(
                   padding: EdgeInsetsDirectional.all(15),
