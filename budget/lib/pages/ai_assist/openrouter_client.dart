@@ -11,7 +11,7 @@ abstract class OpenRouterClient {
     required List<String> categoryNames,
     required Map<String, String> walletNamesWithCurrencies,
     required String defaultWalletName,
-    required String currentDate,
+    required String currentDateTime,
     TransactionDraft? currentDraft,
     String? ocrText,
   });
@@ -111,7 +111,7 @@ class HttpOpenRouterClient implements OpenRouterClient {
     required List<String> categoryNames,
     required Map<String, String> walletNamesWithCurrencies,
     required String defaultWalletName,
-    required String currentDate,
+    required String currentDateTime,
     TransactionDraft? currentDraft,
     String? ocrText,
   }) async {
@@ -127,7 +127,7 @@ class HttpOpenRouterClient implements OpenRouterClient {
         categoryNames,
         walletNamesWithCurrencies,
         defaultWalletName,
-        currentDate,
+        currentDateTime,
         currentDraft,
       );
     } catch (e) {
@@ -140,7 +140,7 @@ class HttpOpenRouterClient implements OpenRouterClient {
           categoryNames,
           walletNamesWithCurrencies,
           defaultWalletName,
-          currentDate,
+          currentDateTime,
           currentDraft,
         );
       } catch (_) {
@@ -156,14 +156,14 @@ class HttpOpenRouterClient implements OpenRouterClient {
     List<String> categoryNames,
     Map<String, String> walletNamesWithCurrencies,
     String defaultWalletName,
-    String currentDate,
+    String currentDateTime,
     TransactionDraft? currentDraft,
   ) async {
     final systemPrompt = _buildSystemPrompt(
       categoryNames,
       walletNamesWithCurrencies,
       defaultWalletName,
-      currentDate,
+      currentDateTime,
       currentDraft,
     );
 
@@ -234,7 +234,7 @@ class HttpOpenRouterClient implements OpenRouterClient {
     List<String> categoryNames,
     Map<String, String> walletNamesWithCurrencies,
     String defaultWalletName,
-    String currentDate,
+    String currentDateTime,
     TransactionDraft? currentDraft,
   ) {
     final catList = categoryNames.join(', ');
@@ -243,7 +243,7 @@ class HttpOpenRouterClient implements OpenRouterClient {
         .join(', ');
 
     var prompt = '''You are a financial transaction parser for a budget app called Cashew.
-Today's date is $currentDate.
+The current date and time is $currentDateTime.
 
 Available categories: $catList
 Available wallets: $walletList
@@ -251,7 +251,7 @@ Default wallet: $defaultWalletName
 
 Parse the user's natural language into a transaction draft.
 - Amount: positive number for expense, use income=true for income (amount is always positive)
-- Date: YYYY-MM-DD format, default to $currentDate if not specified
+- Date: YYYY-MM-DDTHH:mm:ss format (e.g. "2026-07-31T14:30:00"). Default to $currentDateTime if not specified. When a receipt is provided, extract the transaction time from the receipt text if present.
 - Wallet: match against available wallets, default to "$defaultWalletName"
 - Category: match against available categories. If none fit, set createNewCategory=true with newCategoryName
 - Title: a brief description of the transaction
@@ -269,7 +269,7 @@ Respond with ONLY a JSON object:
     "createNewCategory": false,
     "newCategoryName": null,
     "walletName": "$defaultWalletName",
-    "date": "$currentDate",
+    "date": "$currentDateTime",
     "note": null
   }
 }

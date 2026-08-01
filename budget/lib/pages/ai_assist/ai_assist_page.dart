@@ -91,7 +91,7 @@ class _AiAssistChatState extends State<AiAssistChat> {
     return m;
   }
 
-  String get _currentDate => DateFormat('yyyy-MM-dd').format(DateTime.now());
+  String get _currentDateTime => DateFormat('yyyy-MM-ddTHH:mm:ss').format(DateTime.now());
 
   bool get _isLoading => _loadingStage != LoadingStage.none;
 
@@ -261,7 +261,7 @@ class _AiAssistChatState extends State<AiAssistChat> {
         categoryNames: _categoryNames,
         walletNamesWithCurrencies: _walletNamesWithCurrencies,
         defaultWalletName: _defaultWalletName,
-        currentDate: _currentDate,
+        currentDateTime: _currentDateTime,
         currentDraft: _session.currentDraft,
         ocrText: ocrText,
       );
@@ -368,6 +368,17 @@ class _AiAssistChatState extends State<AiAssistChat> {
     );
     _session.save();
     setState(() {});
+  }
+
+  String _formatDraftDate(String dateStr) {
+    try {
+      final dt = DateTime.parse(dateStr);
+      final datePart = DateFormat('MMM d, yyyy').format(dt);
+      final timePart = DateFormat('h:mm a').format(dt);
+      return '$datePart at $timePart';
+    } catch (_) {
+      return dateStr;
+    }
   }
 
   void _newChat() {
@@ -632,7 +643,7 @@ class _AiAssistChatState extends State<AiAssistChat> {
                 Spacer(),
                 if (draft.date != null)
                   TextFont(
-                    text: draft.date!,
+                    text: _formatDraftDate(draft.date!),
                     fontSize: 12,
                     textColor: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),

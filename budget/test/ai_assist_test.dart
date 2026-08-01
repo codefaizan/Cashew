@@ -533,7 +533,7 @@ void main() {
         categoryNames: ['Food', 'Transport'],
         walletNamesWithCurrencies: {'Cash': 'USD', 'Bank': 'USD'},
         defaultWalletName: 'Cash',
-        currentDate: '2026-07-31',
+        currentDateTime: '2026-07-31',
       );
 
       expect(response.assistantMessage, 'Here is your expense');
@@ -589,7 +589,7 @@ void main() {
         categoryNames: ['Food'],
         walletNamesWithCurrencies: {'Cash': 'USD'},
         defaultWalletName: 'Cash',
-        currentDate: '2026-07-31',
+        currentDateTime: '2026-07-31',
       );
 
       expect(
@@ -643,7 +643,7 @@ void main() {
         categoryNames: ['Food'],
         walletNamesWithCurrencies: {'Cash': 'USD'},
         defaultWalletName: 'Cash',
-        currentDate: '2026-07-31',
+        currentDateTime: '2026-07-31',
       );
 
       expect(capturedUserContent, 'lunch 50');
@@ -696,7 +696,7 @@ void main() {
         categoryNames: ['Food'],
         walletNamesWithCurrencies: {'Cash': 'USD'},
         defaultWalletName: 'Cash',
-        currentDate: '2026-07-31',
+        currentDateTime: '2026-07-31',
       );
 
       expect(capturedUserContent, 'test 100');
@@ -717,7 +717,7 @@ void main() {
           categoryNames: [],
           walletNamesWithCurrencies: {},
           defaultWalletName: 'Default',
-          currentDate: '2026-07-31',
+          currentDateTime: '2026-07-31',
         ),
         throwsA(isA<OpenRouterAuthException>()),
       );
@@ -738,7 +738,7 @@ void main() {
           categoryNames: [],
           walletNamesWithCurrencies: {},
           defaultWalletName: 'Default',
-          currentDate: '2026-07-31',
+          currentDateTime: '2026-07-31',
         ),
         throwsA(isA<OpenRouterRateLimitException>()),
       );
@@ -794,7 +794,7 @@ void main() {
         categoryNames: [],
         walletNamesWithCurrencies: {},
         defaultWalletName: 'Default',
-        currentDate: '2026-07-31',
+        currentDateTime: '2026-07-31',
       );
 
       expect(callCount, 2);
