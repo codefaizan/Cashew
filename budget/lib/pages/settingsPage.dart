@@ -423,6 +423,68 @@ class SettingsPageFrameworkState extends State<SettingsPageFramework> {
   }
 }
 
+void _openApiKeySheet(BuildContext context) {
+  final controller = TextEditingController(
+    text: appStateSettings['aiAssistOpenRouterApiKey'] ?? '',
+  );
+  openBottomSheet(
+    context,
+    popupWithKeyboard: true,
+    PopupFramework(
+      title: "OpenRouter API Key",
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(bottom: 12),
+            child: TextFont(
+              text: "Enter your OpenRouter API key. Get a free key at openrouter.ai/keys",
+              fontSize: 13,
+              textColor: getColor(context, "black"),
+              maxLines: 3,
+            ),
+          ),
+          TextField(
+            controller: controller,
+            obscureText: true,
+            decoration: InputDecoration(
+              hintText: 'sk-or-v1-...',
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => popRoute(context),
+                child: TextFont(text: "Cancel", fontSize: 14),
+              ),
+              SizedBox(width: 8),
+              FilledButton(
+                onPressed: () {
+                  updateSettings(
+                    'aiAssistOpenRouterApiKey',
+                    controller.text.trim(),
+                    updateGlobalState: false,
+                    pagesNeedingRefresh: [3],
+                  );
+                  popRoute(context);
+                },
+                child: TextFont(text: "Save", fontSize: 14),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class SettingsPageContent extends StatelessWidget {
   const SettingsPageContent({super.key});
 
@@ -563,6 +625,16 @@ class SettingsPageContent extends StatelessWidget {
         ),
 
         SettingsHeader(title: "tools-and-extras".tr()),
+        SettingsContainer(
+          title: "OpenRouter API Key",
+          description: "For AI Assist. Get a free key at openrouter.ai/keys",
+          icon: appStateSettings["outlinedIcons"]
+              ? Icons.key_outlined
+              : Icons.key_rounded,
+          onTap: () {
+            _openApiKeySheet(context);
+          },
+        ),
         // SettingsContainerOpenPage(
         //   openPage: AutoTransactionsPage(),
         //   title: "Auto Transactions",

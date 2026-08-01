@@ -1,5 +1,6 @@
 import 'package:animations/animations.dart';
 import 'package:budget/colors.dart';
+import 'package:budget/pages/ai_assist/open_ai_assist_sheet.dart';
 import 'package:budget/database/initializeDefaultDatabase.dart';
 import 'package:budget/database/tables.dart';
 import 'package:budget/functions.dart';
@@ -565,6 +566,17 @@ class AddMoreThingsPopup extends StatelessWidget {
     return Column(
       children: [
         SizedBox(height: 5),
+        AddThing(
+          iconData: appStateSettings["outlinedIcons"]
+              ? Icons.auto_awesome_outlined
+              : Icons.auto_awesome_rounded,
+          title: "AI Assist",
+          onTap: () {
+            popRoute(context);
+            openAiAssistSheet(context);
+          },
+          openPage: SizedBox.shrink(),
+        ),
         AddThing(
           iconData: navBarIconsData["accountDetails"]!.iconData,
           title: "account".tr(),

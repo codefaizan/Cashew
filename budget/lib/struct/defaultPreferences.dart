@@ -229,6 +229,7 @@ Future<Map<String, dynamic>> getDefaultPreferences() async {
     "closeNavigationHapticFeedback": false,
     "tabNavigationHapticFeedback": false,
     "percentagePrecision": 0, //number of decimals to round percentages to
+    "aiAssistOpenRouterApiKey": "",
     "allSpendingLastPage": 0, //index of the last tab on the all spending page
     "loansLastPage": 0, //index of the last tab on the loans page
     // "loansUseDifferenceInsteadOfTotalGoal": false,
