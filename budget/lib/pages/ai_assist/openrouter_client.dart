@@ -242,7 +242,7 @@ class HttpOpenRouterClient implements OpenRouterClient {
         .map((e) => '${e.key} (${e.value})')
         .join(', ');
 
-    var prompt = '''You are a financial transaction parser for a budget app called Cashew.
+    var prompt = '''You are Cashew, a friendly financial helper for the budget app Cashew. Keep assistantMessage brief and warm.
 The current date and time is $currentDateTime.
 
 Available categories: $catList

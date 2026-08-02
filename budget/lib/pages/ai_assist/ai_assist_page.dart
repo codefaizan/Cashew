@@ -9,6 +9,7 @@ import 'package:budget/functions.dart';
 import 'package:budget/pages/ai_assist/ai_assist_confirm.dart';
 import 'package:budget/pages/ai_assist/ai_assist_models.dart';
 import 'package:budget/pages/ai_assist/ai_assist_session.dart';
+import 'package:budget/pages/ai_assist/cashew_character.dart';
 import 'package:budget/pages/ai_assist/openrouter_client.dart';
 import 'package:budget/struct/databaseGlobal.dart';
 import 'package:budget/struct/settings.dart';
@@ -500,23 +501,27 @@ class _AiAssistChatState extends State<AiAssistChat> {
           children: [
             _buildHeader(context, popColor),
             Expanded(
-              child: ListView.builder(
-                controller: widget.scrollController,
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                itemCount:
-                    _session.messages.length + (_isLoading ? 1 : 0) + (_error != null ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index < _session.messages.length) {
-                    return _buildMessageBubble(
-                        _session.messages[index], index);
-                  }
-                  if (_isLoading &&
-                      index == _session.messages.length) {
-                    return _buildLoadingBubble();
-                  }
-                  return _buildErrorBubble();
-                },
-              ),
+              child: _session.messages.isEmpty && !_isLoading && _error == null
+                  ? _buildEmptyState(context)
+                  : ListView.builder(
+                      controller: widget.scrollController,
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: _session.messages.length +
+                          (_isLoading ? 1 : 0) +
+                          (_error != null ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index < _session.messages.length) {
+                          return _buildMessageBubble(
+                              _session.messages[index], index);
+                        }
+                        if (_isLoading &&
+                            index == _session.messages.length) {
+                          return _buildLoadingBubble();
+                        }
+                        return _buildErrorBubble();
+                      },
+                    ),
             ),
             _buildInputBar(context, popColor),
           ],
@@ -545,9 +550,11 @@ class _AiAssistChatState extends State<AiAssistChat> {
             padding: EdgeInsets.zero,
             constraints: BoxConstraints(minWidth: 36, minHeight: 36),
           ),
+          CashewCharacter(size: 28),
+          SizedBox(width: 8),
           Expanded(
             child: TextFont(
-              text: 'AI Assist',
+              text: 'Cashew',
               fontSize: 17,
               fontWeight: FontWeight.w600,
             ),
@@ -570,6 +577,48 @@ class _AiAssistChatState extends State<AiAssistChat> {
     );
   }
 
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CashewCharacter(size: 120, animated: true),
+            SizedBox(height: 20),
+            TextFont(
+              text: "Hi, I'm Cashew",
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 8),
+            TextFont(
+              text: 'Describe a transaction or attach a receipt.',
+              fontSize: 14,
+              textColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _assistantAvatarRow({required Widget child}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(bottom: 2, right: 8),
+          child: CashewCharacter(size: 28),
+        ),
+        Flexible(child: child),
+      ],
+    );
+  }
+
   Widget _buildMessageBubble(ChatMessage message, int index) {
     final isUser = message.role == 'user';
     final hasDraft = message.draft != null;
@@ -589,55 +638,73 @@ class _AiAssistChatState extends State<AiAssistChat> {
         crossAxisAlignment:
             isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment:
-                isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-            children: [
-              Flexible(
-                child: Container(
-                  constraints: BoxConstraints(maxWidth: 320),
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isUser
-                        ? Theme.of(context)
-                            .colorScheme
-                            .primaryContainer
-                            .withOpacity(0.5)
-                        : Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (hasImage)
-                        Padding(
-                          padding: EdgeInsets.only(bottom: 8),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.memory(
-                              _decodeBase64(message.imageBase64!),
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
+          if (isUser)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: Container(
+                    constraints: BoxConstraints(maxWidth: 320),
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primaryContainer
+                          .withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (hasImage)
+                          Padding(
+                            padding: EdgeInsets.only(bottom: 8),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.memory(
+                                _decodeBase64(message.imageBase64!),
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
-                        ),
-                      if (message.content.isNotEmpty)
-                        TextFont(
-                          text: message.content,
-                          fontSize: 14,
-                          maxLines: null,
-                          overflow: TextOverflow.visible,
-                        ),
-                    ],
+                        if (message.content.isNotEmpty)
+                          TextFont(
+                            text: message.content,
+                            fontSize: 14,
+                            maxLines: null,
+                            overflow: TextOverflow.visible,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
+              ],
+            )
+          else
+            _assistantAvatarRow(
+              child: Container(
+                constraints: BoxConstraints(maxWidth: 320),
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest
+                      .withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: message.content.isNotEmpty
+                    ? TextFont(
+                        text: message.content,
+                        fontSize: 14,
+                        maxLines: null,
+                        overflow: TextOverflow.visible,
+                      )
+                    : SizedBox.shrink(),
               ),
-            ],
-          ),
+            ),
           if (hasDraft && isPending) _buildDraftCard(message.draft!),
           if (hasDraft && isConfirmed) _buildConfirmedCard(),
           if (hasDraft && isDiscarded) _buildDiscardedCard(),
@@ -653,46 +720,51 @@ class _AiAssistChatState extends State<AiAssistChat> {
   Widget _buildOcrBubble(ChatMessage message) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 4),
-      child: Container(
-        constraints: BoxConstraints(maxWidth: 320),
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Theme.of(context)
-              .colorScheme
-              .tertiaryContainer
-              .withOpacity(0.4),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+      child: _assistantAvatarRow(
+        child: Container(
+          constraints: BoxConstraints(maxWidth: 320),
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context)
+                .colorScheme
+                .tertiaryContainer
+                .withOpacity(0.4),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.receipt_long_outlined,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                SizedBox(width: 6),
-                TextFont(
-                  text: "Here's what I read from your receipt:",
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  textColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            TextFont(
-              text: message.content,
-              fontSize: 13,
-              maxLines: null,
-              overflow: TextOverflow.visible,
-            ),
-          ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: TextFont(
+                      text: "Here's what I read from your receipt:",
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      textColor:
+                          Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              TextFont(
+                text: message.content,
+                fontSize: 13,
+                maxLines: null,
+                overflow: TextOverflow.visible,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -892,38 +964,37 @@ class _AiAssistChatState extends State<AiAssistChat> {
     final label = _loadingLabel;
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Container(
-            constraints: BoxConstraints(maxWidth: 320),
-            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withOpacity(0.5),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                if (label != null) ...[
-                  SizedBox(width: 8),
-                  TextFont(
+      child: _assistantAvatarRow(
+        child: Container(
+          constraints: BoxConstraints(maxWidth: 320),
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withOpacity(0.5),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              if (label != null) ...[
+                SizedBox(width: 8),
+                Flexible(
+                  child: TextFont(
                     text: label,
                     fontSize: 13,
                   ),
-                ],
+                ),
               ],
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
