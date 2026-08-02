@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:budget/database/tables.dart';
+import 'package:budget/functions.dart';
 import 'package:budget/pages/ai_assist/ai_assist_confirm.dart';
 import 'package:budget/pages/ai_assist/ai_assist_models.dart';
 import 'package:budget/pages/ai_assist/ai_assist_session.dart';
@@ -14,6 +15,7 @@ import 'package:budget/struct/settings.dart';
 import 'package:budget/widgets/openBottomSheet.dart';
 import 'package:budget/widgets/textWidgets.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 enum LoadingStage {
   none,
@@ -444,6 +446,25 @@ class _AiAssistChatState extends State<AiAssistChat> {
     }
   }
 
+  String? _currencyKeyForDraft(TransactionDraft draft) {
+    if (draft.walletName != null && draft.walletName!.trim().isNotEmpty) {
+      final name = draft.walletName!.trim().toLowerCase();
+      for (final w in _wallets.values) {
+        if (w.name.trim().toLowerCase() == name) return w.currency;
+      }
+    }
+    final pk = appStateSettings['selectedWalletPk'] as String? ?? '0';
+    return _wallets[pk]?.currency;
+  }
+
+  String _formatDraftAmount(TransactionDraft draft) {
+    return convertToMoney(
+      Provider.of<AllWallets>(context),
+      draft.amount!,
+      currencyKey: _currencyKeyForDraft(draft),
+    );
+  }
+
   void _newChat() {
     AiAssistSession.clear();
     _textController.clear();
@@ -609,6 +630,7 @@ class _AiAssistChatState extends State<AiAssistChat> {
                           text: message.content,
                           fontSize: 14,
                           maxLines: null,
+                          overflow: TextOverflow.visible,
                         ),
                     ],
                   ),
@@ -668,6 +690,7 @@ class _AiAssistChatState extends State<AiAssistChat> {
               text: message.content,
               fontSize: 13,
               maxLines: null,
+              overflow: TextOverflow.visible,
             ),
           ],
         ),
@@ -721,7 +744,7 @@ class _AiAssistChatState extends State<AiAssistChat> {
               children: [
                 if (draft.amount != null)
                   TextFont(
-                    text: '\$${draft.amount!.toStringAsFixed(2)}',
+                    text: _formatDraftAmount(draft),
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
