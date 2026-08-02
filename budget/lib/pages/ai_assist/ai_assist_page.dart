@@ -501,27 +501,40 @@ class _AiAssistChatState extends State<AiAssistChat> {
           children: [
             _buildHeader(context, popColor),
             Expanded(
-              child: _session.messages.isEmpty && !_isLoading && _error == null
-                  ? _buildEmptyState(context)
-                  : ListView.builder(
-                      controller: widget.scrollController,
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: _session.messages.length +
-                          (_isLoading ? 1 : 0) +
-                          (_error != null ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index < _session.messages.length) {
-                          return _buildMessageBubble(
-                              _session.messages[index], index);
-                        }
-                        if (_isLoading &&
-                            index == _session.messages.length) {
-                          return _buildLoadingBubble();
-                        }
-                        return _buildErrorBubble();
-                      },
-                    ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isEmpty = _session.messages.isEmpty &&
+                      !_isLoading &&
+                      _error == null;
+                  return ListView.builder(
+                    controller: widget.scrollController,
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: isEmpty
+                        ? 1
+                        : _session.messages.length +
+                            (_isLoading ? 1 : 0) +
+                            (_error != null ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (isEmpty) {
+                        return SizedBox(
+                          height: constraints.maxHeight - 16,
+                          child: _buildEmptyState(context),
+                        );
+                      }
+                      if (index < _session.messages.length) {
+                        return _buildMessageBubble(
+                            _session.messages[index], index);
+                      }
+                      if (_isLoading &&
+                          index == _session.messages.length) {
+                        return _buildLoadingBubble();
+                      }
+                      return _buildErrorBubble();
+                    },
+                  );
+                },
+              ),
             ),
             _buildInputBar(context, popColor),
           ],
