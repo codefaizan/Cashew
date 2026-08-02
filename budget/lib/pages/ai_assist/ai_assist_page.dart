@@ -34,11 +34,19 @@ class _AiAssistChatState extends State<AiAssistChat> {
   AiAssistSession _session = const AiAssistSession();
   LoadingStage _loadingStage = LoadingStage.none;
   String? _error;
+  bool _errorExpanded = false;
   String _apiKey = '';
   final TextEditingController _textController = TextEditingController();
   final FocusNode _inputFocusNode = FocusNode();
   String? _attachedImageBase64;
   final ImagePicker _imagePicker = ImagePicker();
+
+  // Last failed send — kept so Retry can re-run without re-picking the image.
+  int? _retryFromMessageCount;
+  String? _retryText;
+  String? _retryImageBase64;
+  String? _retryThumbnailBase64;
+  TransactionDraft? _retryConfirmDraft;
 
   List<TransactionCategory> _categories = [];
   Map<String, TransactionWallet> _wallets = {};
@@ -128,7 +136,8 @@ class _AiAssistChatState extends State<AiAssistChat> {
       });
     } catch (e) {
       setState(() {
-        _error = 'This image couldn\'t be used. Try a different photo.';
+        _clearRetry();
+        _setError('This image couldn\'t be used. Try a different photo.');
       });
     }
   }
@@ -193,24 +202,80 @@ class _AiAssistChatState extends State<AiAssistChat> {
     );
   }
 
+  void _setError(String message) {
+    _error = message;
+    _errorExpanded = false;
+    _loadingStage = LoadingStage.none;
+  }
+
+  void _clearRetry() {
+    _retryFromMessageCount = null;
+    _retryText = null;
+    _retryImageBase64 = null;
+    _retryThumbnailBase64 = null;
+    _retryConfirmDraft = null;
+  }
+
+  bool get _canRetry =>
+      _retryConfirmDraft != null || _retryFromMessageCount != null;
+
+  Future<void> _retry() async {
+    if (_isLoading || !_canRetry) return;
+
+    if (_retryConfirmDraft != null) {
+      final draft = _retryConfirmDraft!;
+      setState(() => _error = null);
+      await _confirmDraft(draft);
+      return;
+    }
+
+    final text = _retryText ?? '';
+    final imageBase64 = _retryImageBase64;
+    final thumbnailBase64 = _retryThumbnailBase64;
+    final fromCount = _retryFromMessageCount!;
+
+    if (_session.messages.length > fromCount) {
+      _session = _session.copyWith(
+        messages: _session.messages.sublist(0, fromCount),
+      );
+      await _session.save();
+    }
+
+    _textController.text = text;
+    setState(() {
+      _error = null;
+      _attachedImageBase64 = imageBase64;
+      _pendingThumbnailBase64 = thumbnailBase64;
+    });
+    await _sendMessage();
+  }
+
   Future<void> _sendMessage() async {
     final text = _textController.text.trim();
     final hasImage = _attachedImageBase64 != null;
     if (text.isEmpty && !hasImage || _isLoading) return;
 
-    if (_apiKey.isEmpty) {
-      setState(
-          () => _error = 'Please add your OpenRouter API key in Settings');
-      return;
-    }
-
     final imageBase64 = _attachedImageBase64;
     final thumbnailBase64 = _pendingThumbnailBase64;
+    final messageCountBefore = _session.messages.length;
+
+    _retryFromMessageCount = messageCountBefore;
+    _retryText = text;
+    _retryImageBase64 = imageBase64;
+    _retryThumbnailBase64 = thumbnailBase64;
+    _retryConfirmDraft = null;
+
+    if (_apiKey.isEmpty) {
+      setState(() => _setError(
+          'Please add your OpenRouter API key in Settings'));
+      return;
+    }
 
     _textController.clear();
     setState(() {
       _error = null;
-      _loadingStage = hasImage ? LoadingStage.readingImage : LoadingStage.creatingDraft;
+      _loadingStage =
+          hasImage ? LoadingStage.readingImage : LoadingStage.creatingDraft;
       _attachedImageBase64 = null;
       _pendingThumbnailBase64 = null;
     });
@@ -234,10 +299,8 @@ class _AiAssistChatState extends State<AiAssistChat> {
         ocrText = await client.ocrImage(imageBase64);
 
         if (ocrText.trim().isEmpty) {
-          setState(() {
-            _error = 'No text found in the image. Try a clearer photo.';
-            _loadingStage = LoadingStage.none;
-          });
+          setState(() =>
+              _setError('No text found in the image. Try a clearer photo.'));
           return;
         }
 
@@ -279,26 +342,22 @@ class _AiAssistChatState extends State<AiAssistChat> {
       );
       await _session.save();
 
+      _clearRetry();
       setState(() => _loadingStage = LoadingStage.none);
     } on OpenRouterAuthException {
-      setState(() {
-        _error = 'Invalid API key. Check your OpenRouter key in Settings.';
-        _loadingStage = LoadingStage.none;
-      });
+      setState(() => _setError(
+          'Invalid API key. Check your OpenRouter key in Settings.'));
     } on OpenRouterRateLimitException {
-      setState(() {
-        _error =
-            'Rate limited by OpenRouter. Please wait a moment and try again.';
-        _loadingStage = LoadingStage.none;
-      });
+      setState(() => _setError(
+          'Rate limited by OpenRouter. Please wait a moment and try again.'));
     } catch (e) {
       setState(() {
         if (_loadingStage == LoadingStage.readingImage) {
-          _error = 'Couldn\'t read your receipt. Try again or type the details.';
+          _setError(
+              'Couldn\'t read your receipt. Try again or type the details.');
         } else {
-          _error = 'Error: ${e.toString()}';
+          _setError('Error: ${e.toString()}');
         }
-        _loadingStage = LoadingStage.none;
       });
     }
 
@@ -306,7 +365,12 @@ class _AiAssistChatState extends State<AiAssistChat> {
   }
 
   Future<void> _confirmDraft(TransactionDraft draft) async {
-    setState(() => _loadingStage = LoadingStage.creatingDraft);
+    _retryConfirmDraft = draft;
+    _retryFromMessageCount = null;
+    setState(() {
+      _error = null;
+      _loadingStage = LoadingStage.creatingDraft;
+    });
     try {
       final handler = AiAssistConfirmHandler();
       await handler.confirm(draft);
@@ -333,12 +397,11 @@ class _AiAssistChatState extends State<AiAssistChat> {
 
       // Reload to get new category if created
       await _loadData();
+      _clearRetry();
       setState(() => _loadingStage = LoadingStage.none);
     } catch (e) {
-      setState(() {
-        _error = 'Failed to create transaction: ${e.toString()}';
-        _loadingStage = LoadingStage.none;
-      });
+      setState(
+          () => _setError('Failed to create transaction: ${e.toString()}'));
     }
   }
 
@@ -384,9 +447,13 @@ class _AiAssistChatState extends State<AiAssistChat> {
   void _newChat() {
     AiAssistSession.clear();
     _textController.clear();
+    _clearRetry();
     setState(() {
       _session = const AiAssistSession();
       _error = null;
+      _errorExpanded = false;
+      _attachedImageBase64 = null;
+      _pendingThumbnailBase64 = null;
     });
   }
 
@@ -839,18 +906,63 @@ class _AiAssistChatState extends State<AiAssistChat> {
   }
 
   Widget _buildErrorBubble() {
+    final errorColor = Theme.of(context).colorScheme.error;
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 4),
       child: Container(
+        width: double.infinity,
         padding: EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.3),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: TextFont(
-          text: _error!,
-          fontSize: 12,
-          textColor: Theme.of(context).colorScheme.error,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: () =>
+                  setState(() => _errorExpanded = !_errorExpanded),
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFont(
+                      text: _error!,
+                      fontSize: 12,
+                      textColor: errorColor,
+                      maxLines: _errorExpanded ? null : 2,
+                      overflow: _errorExpanded
+                          ? TextOverflow.visible
+                          : TextOverflow.ellipsis,
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Icon(
+                    _errorExpanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    size: 18,
+                    color: errorColor,
+                  ),
+                ],
+              ),
+            ),
+            if (_canRetry) ...[
+              SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  onPressed: _isLoading ? null : _retry,
+                  icon: Icon(Icons.refresh_rounded, size: 20),
+                  color: errorColor,
+                  tooltip: 'Retry',
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
